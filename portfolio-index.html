@@ -1,0 +1,427 @@
+<!--
+  Three-Column Portfolio Index
+  -------------------------------------------------
+  Single-file index.html to showcase standalone pages that live
+  in the SAME FOLDER as this file. No external deps. Drop-in ready.
+
+  HOW TO USE
+  1) Put this file (index.html) in the folder alongside your pages.
+  2) In the ITEMS array below, add entries for each page you want to show.
+     - file: the filename of your page (relative, same folder)
+     - category: one of "Utility", "Design", or "Local"
+     - title/description/tags/date: as you like; tags help with search
+  3) Optionally tweak THEME variables in :root for quick restyling.
+
+  Notes
+  - Responsive. On large screens it shows 3 columns; smaller screens collapse gracefully.
+  - Built-in search, tag filtering, and sort (Newest, A→Z).
+  - Dark-mode aware (prefers-color-scheme), with custom CSS variables.
+  - All CSS & JS embedded.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfolio • Utility · Design · Local</title>
+<meta name="description" content="Three-column portfolio index for standalone pages." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2300d1b2'/%3E%3Cpath d='M16 40h32v4H16zM16 20h22v4H16zM16 30h28v4H16z' fill='white'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    /* Tweak these to match your house style */
+    --bg:        #0b1220;
+    --surface:   #0f172a; /* slate-900-ish */
+    --elev:      #111827; /* near-surface */
+    --text:      #e5eef7; /* light text */
+    --muted:     #a3b1c6; /* secondary text */
+    --ring:      #7dd3fc; /* focus ring */
+    --accent:    #22d3ee; /* cyan */
+    --accent-2:  #60a5fa; /* blue */
+    --chip:      #1f2937; /* tag chip */
+    --card:      rgba(255,255,255,0.04);
+    --border:    rgba(255,255,255,0.08);
+    --shadow:    0 10px 25px rgba(0,0,0,0.35);
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:       #f5f7fb;
+      --surface:  #ffffff;
+      --elev:     #f1f5f9;
+      --text:     #0b1020;
+      --muted:    #4b5563;
+      --ring:     #2563eb;
+      --accent:   #0ea5e9;
+      --accent-2: #6366f1;
+      --chip:     #eef2ff;
+      --card:     rgba(0,0,0,0.04);
+      --border:   rgba(0,0,0,0.08);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: radial-gradient(1200px 700px at 10% 0%, rgba(96,165,250,0.08), transparent 50%),
+                         radial-gradient(1000px 600px at 90% 10%, rgba(34,211,238,0.08), transparent 50%),
+                         var(--bg);
+    color: var(--text);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 18px 80px; }
+
+  header.appbar {
+    position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(15,23,42,0.75), rgba(15,23,42,0.55));
+    border-bottom: 1px solid var(--border);
+  }
+  header .inner { max-width: 1200px; margin: 0 auto; padding: 14px 18px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: 0.2px; }
+  .brand svg { width: 26px; height: 26px; }
+  .brand .sub { color: var(--muted); font-weight: 500; font-size: 14px; margin-left: 4px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .control { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 12px; }
+  .control input[type="search"] { background: transparent; border: 0; color: var(--text); outline: none; min-width: 200px; }
+  .control select { background: transparent; border: 0; color: var(--text); outline: none; }
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color: var(--muted); font-size: 12px; border: 1px solid var(--border); padding: 1px 6px; border-radius: 6px; }
+
+  .hero { margin: 22px 0 12px; padding: 18px; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+  .hero h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: 0.2px; }
+  .hero p { margin: 4px 0 0; color: var(--muted); }
+
+  .columns { display: grid; gap: 16px; grid-template-columns: 1fr 1fr 1fr; align-items: start; }
+  @media (max-width: 1100px) { .columns { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 760px)  { .columns { grid-template-columns: 1fr; } }
+
+  section.col { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); min-height: 220px; }
+  .col header { position: sticky; top: 64px; background: linear-gradient(180deg, rgba(15,23,42,0.9), rgba(15,23,42,0.7)); border-bottom: 1px solid var(--border); border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); padding: 14px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .col header h2 { margin: 0; font-size: 16px; letter-spacing: 0.6px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
+  .col header .count { color: var(--muted); font-size: 12px; }
+
+  .list { padding: 12px; display: grid; gap: 12px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; transition: transform 140ms ease, background-color 140ms ease, box-shadow 140ms ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.25); }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 6px 0 8px; color: var(--muted); }
+  .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--chip); padding: 5px 8px; border-radius: 999px; font-size: 12px; color: var(--text); cursor: pointer; }
+  .chip svg { width: 14px; height: 14px; }
+
+  .actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); background: linear-gradient(180deg, rgba(34,211,238,0.18), rgba(34,211,238,0.06)); border: 1px solid var(--border); padding: 8px 10px; border-radius: 10px; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,0.15) inset; }
+  .ghost { background: linear-gradient(180deg, rgba(96,165,250,0.10), rgba(96,165,250,0.05)); }
+
+  .empty { color: var(--muted); text-align: center; padding: 16px; border: 1px dashed var(--border); border-radius: var(--radius-md); margin: 12px; }
+
+  footer { margin-top: 36px; color: var(--muted); text-align: center; font-size: 13px; }
+
+  /* Focus */
+  :focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); border-radius: 8px; }
+
+  /* Subtle animated stripe accent on headers */
+  .stripe { position: relative; }
+  .stripe::after { content: ""; position: absolute; inset: auto auto -2px 0; height: 3px; width: 56px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; }
+</style>
+</head>
+<body>
+  <header class="appbar" role="banner">
+    <div class="inner">
+      <div class="brand" aria-label="Portfolio home">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 4v10l-8 4-8-4V7l8-4z"/><path d="M12 3v18" opacity=".5"/><path d="M4 7l8 4 8-4" opacity=".5"/></svg>
+        <div>
+          <div>Portfolio Index</div>
+          <div class="sub">Utility • Design • Local</div>
+        </div>
+      </div>
+      <div class="controls" role="search">
+        <label class="control" title="Search (/)" aria-label="Search">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="q" type="search" placeholder="Search title or tags…" autocomplete="off" />
+          <span class="kbd">/</span>
+        </label>
+        <label class="control" aria-label="Sort">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+          <select id="sort">
+            <option value="new">Newest</option>
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+          </select>
+        </label>
+        <button class="control" id="clear" title="Clear filters" aria-label="Clear filters">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M6 6l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Reset
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" id="app" role="main">
+    <div class="hero">
+      <h1 class="stripe">Selected Works</h1>
+      <p>Browse your standalone pages by category. Use search and tags to filter. Everything opens in a new tab.</p>
+    </div>
+
+    <div class="columns" id="columns" aria-live="polite" aria-busy="false">
+      <!-- Columns are rendered here by JS -->
+    </div>
+
+    <div id="empty" class="empty" hidden>No matches. Try clearing filters or searching different terms.</div>
+
+    <footer>Made with ♥ — single-file index for quick drop-in portfolios.</footer>
+  </main>
+
+<script>
+  // ---- Data -------------------------------------------------------------
+  // Replace these with your real pages (same folder as index.html)
+  const ITEMS = [
+    // Utility
+    {
+      title: "Silver Meteor Connections",
+      file: "Silver.html",
+      category: "Utility",
+      description: "A connection planner for the Amtrak Silver Meteor line.",
+      tags: ["connection-required","tourism","web-scraping","scheduling"],
+      date: "2025-05-25"
+    },
+    {
+      title: "Net-Trek: The Next Generative",
+      file: "Webtrek.html",
+      category: "Utility",
+      description: "Network dashboard in a classic Sci-Fi style.",
+      tags: ["web","data"],
+      date: "2025-08-24"
+    },
+
+
+    // Microframes
+    {
+      title: "150kb Landing Page",
+      file: "SingingWithSprouts.html",
+      category: "Design",
+      description: "Hypercompact landing page with custom sprites using SVG symbolsheet",
+      tags: ["ui","cards","hover"],
+      date: "2025-07-12"
+    },
+    {
+      title: "Microcosm One-page Site Foundry",
+      file: "SiteGenerator.html",
+      category: "Design",
+      description: "A local-first site builder with live responsive preview, curated starting points, editable project files, and standalone HTML export.",
+      tags: ["web","branding","generator","local-first"],
+      date: "2025-06-05"
+    },
+
+    // Local
+    {
+      title: "Kennedy Space Center Launch Countdown",
+      file: "TMinusKSC.html",
+      category: "Local",
+      description: "Real-time countdown clock of launches from Kennedy Space Center.",
+      tags: ["connection-required","tourism","web-scraping","scheduling"],
+      date: "2025-05-25"
+    },
+    {
+      title: "Beach Walk Planner",
+      file: "TideClock.html",
+      category: "Local",
+      description: "A weather dashboard for planning night beach walks.",
+      tags: ["weather","tourism"],
+      date: "2025-04-18"
+    }
+  ];
+
+  const CATEGORIES = ["Utility", "Design", "Local"];
+
+  // ---- State ------------------------------------------------------------
+  const state = {
+    q: "",
+    tags: new Set(),
+    sort: "new"
+  };
+
+  // ---- Helpers ----------------------------------------------------------
+  const $ = (sel, el=document) => el.querySelector(sel);
+  const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
+
+  function formatDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function matchesQuery(item, q) {
+    if (!q) return true;
+    const hay = (item.title + " " + (item.description||"") + " " + (item.tags||[]).join(" ")).toLowerCase();
+    return hay.includes(q.toLowerCase());
+  }
+
+  function matchesTags(item, tags) {
+    if (!tags || tags.size === 0) return true;
+    const its = new Set((item.tags||[]).map(t => t.toLowerCase()));
+    for (const t of tags) if (!its.has(t.toLowerCase())) return false;
+    return true;
+  }
+
+  function sortItems(items, how) {
+    const arr = items.slice();
+    if (how === 'new') arr.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    if (how === 'az')  arr.sort((a,b) => a.title.localeCompare(b.title));
+    if (how === 'za')  arr.sort((a,b) => b.title.localeCompare(a.title));
+    return arr;
+  }
+
+  // Build a global tag list for quick filtering
+  function allTags(items) {
+    const s = new Set();
+    items.forEach(i => (i.tags||[]).forEach(t => s.add(t)));
+    return Array.from(s).sort((a,b) => a.localeCompare(b));
+  }
+
+  // ---- Render -----------------------------------------------------------
+  function render() {
+    const root = $('#columns');
+    root.setAttribute('aria-busy', 'true');
+
+    const filtered = ITEMS.filter(i => matchesQuery(i, state.q) && matchesTags(i, state.tags));
+    const byCat = Object.fromEntries(CATEGORIES.map(c => [c, []]));
+    sortItems(filtered, state.sort).forEach(i => byCat[i.category]?.push(i));
+
+    root.innerHTML = '';
+    let total = 0;
+    for (const cat of CATEGORIES) {
+      const list = byCat[cat] || [];
+      total += list.length;
+      const section = document.createElement('section');
+      section.className = 'col';
+
+      const head = document.createElement('header');
+      const h2 = document.createElement('h2');
+      h2.className = 'stripe';
+      h2.innerHTML = `${iconFor(cat)}${cat}`;
+      const count = document.createElement('div');
+      count.className = 'count';
+      count.textContent = list.length + ' item' + (list.length===1?'':'s');
+      head.append(h2, count);
+
+      const ul = document.createElement('div');
+      ul.className = 'list';
+
+      if (list.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No entries yet. Add some in the ITEMS array.';
+        ul.appendChild(empty);
+      } else {
+        for (const it of list) ul.appendChild(renderCard(it));
+      }
+
+      section.append(head, ul);
+      root.appendChild(section);
+    }
+
+    $('#empty').hidden = total !== 0;
+    root.setAttribute('aria-busy', 'false');
+    renderTagBar();
+  }
+
+  function renderCard(it) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.setAttribute('tabindex', '0');
+
+    const h3 = document.createElement('h3');
+    h3.innerHTML = `${escapeHtml(it.title)} ${it.date?`<span style="font-weight:500;color:var(--muted);font-size:12px">· ${formatDate(it.date)}</span>`:''}`;
+
+    const p = document.createElement('p');
+    p.textContent = it.description || '';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    (it.tags||[]).forEach(t => meta.appendChild(tagChip(t)));
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const open = document.createElement('a');
+    open.className = 'btn';
+    open.href = it.file; open.target = '_blank' ; open.rel = 'noopener';
+    open.innerHTML = `${linkIcon()}Open`;
+
+    const peek = document.createElement('a');
+    peek.className = 'btn ghost';
+    peek.href = it.file + '#peek'; peek.target = '_blank'; peek.rel = 'noopener';
+    peek.innerHTML = `${eyeIcon()}Preview`;
+
+    actions.append(open, peek);
+
+    card.append(h3, p, meta, actions);
+    return card;
+  }
+
+  function tagChip(t) {
+    const chip = document.createElement('button');
+    chip.className = 'chip'; chip.type = 'button'; chip.dataset.tag = t;
+    chip.innerHTML = `${hashIcon()}${escapeHtml(t)}`;
+    chip.addEventListener('click', () => {
+      if (state.tags.has(t)) state.tags.delete(t); else state.tags.add(t);
+      render();
+    });
+    if (state.tags.has(t)) chip.style.outline = `2px solid var(--accent)`;
+    return chip;
+  }
+
+  function renderTagBar() {
+    const tagBar = $('#tagbar');
+    if (!tagBar) return;
+    tagBar.innerHTML = '';
+    for (const t of allTags(ITEMS)) tagBar.appendChild(tagChip(t));
+  }
+
+  function escapeHtml(s='') { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+
+  // ---- Icons ------------------------------------------------------------
+  function iconFor(cat) {
+    const common = 'width="18" height="18" style="margin-right:8px" aria-hidden="true"';
+    if (cat === 'Utility') return `<svg ${common} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 3h4v4h-4z"/><path d="M4 13h16"/><path d="M6 17h12M8 21h8"/></svg>`;
+    if (cat === 'Design')  return `<svg ${common} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v6M12 16v6M2 12h6M16 12h6"/><circle cx="12" cy="12" r="4"/></svg>`;
+    return `<svg ${common} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v10H4z"/><path d="M4 11h16"/></svg>`;
+  }
+  function linkIcon(){ return '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14l-2 2a3 3 0 1 1-4-4l3-3"/><path d="M14 10l2-2a3 3 0 1 1 4 4l-3 3"/><path d="M8 12h8"/></svg> '; }
+  function eyeIcon(){ return '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> '; }
+  function hashIcon(){ return '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 9h14M3 15h14"/><path d="M8 4L6 20M18 4l-2 16"/></svg> '; }
+
+  // ---- Wire up controls -------------------------------------------------
+  const inputQ = $('#q');
+  const selSort = $('#sort');
+  const btnClear = $('#clear');
+
+  inputQ.addEventListener('input', e => { state.q = e.target.value.trim(); render(); });
+  selSort.addEventListener('change', e => { state.sort = e.target.value; render(); });
+  btnClear.addEventListener('click', () => { state.q = ''; state.tags.clear(); inputQ.value=''; selSort.value='new'; render(); });
+
+  // Keyboard: focus search with '/'
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== inputQ) {
+      e.preventDefault(); inputQ.focus();
+    }
+  });
+
+  // Optional tag bar area under hero (uncomment to show a global tag list)
+  // const tagbarEl = document.createElement('div');
+  // tagbarEl.id = 'tagbar';
+  // tagbarEl.className = 'meta';
+  // document.querySelector('.hero').appendChild(tagbarEl);
+
+  // Initial render
+  render();
+</script>
+</body>
+</html>

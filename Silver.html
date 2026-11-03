@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Amtrak Silver Meteor — Map + Station Legend</title>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <style>
+    :root{
+      --bg:#001b2a; --fg:#e7f1ff; --muted:#b6c7d8; --accent:#00b0ff; --accent-2:#ff6f00; --line:#0d3147;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+
+    /* Map as the full-page background */
+    #map{position:fixed;inset:0;z-index:0}
+
+    /* Top bar with title + realtime links */
+    .topbar{position:fixed;left:0;right:0;top:0;z-index:10;display:flex;gap:.75rem;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.30), rgba(0,0,0,0));backdrop-filter:saturate(120%) blur(6px)}
+    .title{font-weight:700;letter-spacing:.2px}
+    .links{display:flex;flex-wrap:wrap;gap:.6rem;font-size:.9rem}
+    .links a{color:var(--fg);text-decoration:none;border:1px solid rgba(255,255,255,.25);padding:.25rem .5rem;border-radius:999px}
+    .links a:hover{background:rgba(255,255,255,.08)}
+
+    /* Right legend list */
+    .sidebar{position:fixed;top:64px;right:12px;width:380px;max-width:92vw;max-height:calc(100vh - 80px);z-index:20;overflow:auto;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px) saturate(130%);border-radius:14px}
+    .s-header{position:sticky;top:0;background:rgba(0,0,0,.55);padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:.6rem}
+    .s-header input{flex:1 1 auto;width:100%;padding:.5rem .75rem;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:var(--fg)}
+    .station-list{padding:.5rem .25rem 1rem .25rem}
+
+    .station{position:relative;display:flex;gap:.8rem;align-items:flex-start;margin:.25rem .5rem;border-left:3px solid var(--line);padding:.6rem .6rem .6rem 1rem;border-radius:8px;background:linear-gradient(90deg, rgba(13,49,71,.45), rgba(13,49,71,.2) 40%, rgba(13,49,71,0));cursor:pointer}
+    .station:hover{background:linear-gradient(90deg, rgba(13,49,71,.6), rgba(13,49,71,.3) 40%, rgba(13,49,71,0))}
+    .station.active{border-left-color:var(--accent);box-shadow:0 0 0 1px rgba(255,255,255,.05) inset, 0 0 0 2px rgba(0,176,255,.25)}
+    .dot{position:absolute;left:-9px;top:1.05rem;width:14px;height:14px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 0 rgba(255,111,0,.6);animation:pulse 2s infinite}
+    .station.active .dot{background:var(--accent);box-shadow:0 0 0 6px rgba(0,176,255,.25)}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,111,0,.6)}70%{box-shadow:0 0 0 10px rgba(255,111,0,0)}100%{box-shadow:0 0 0 0 rgba(255,111,0,0)}}
+
+    .info h3{font-size:1rem;margin:0 0 .15rem 0}
+    .info p{margin:0;font-size:.85rem;color:var(--muted)}
+    details{margin-top:.3rem}
+    summary{cursor:pointer;outline:none;font-size:.9rem}
+    summary::-webkit-details-marker{display:none}
+    summary::after{content:" ⏷";color:var(--accent)}
+    details[open] summary::after{content:" ⏶"}
+    ul{margin:.4rem 0 0 1.1rem}
+
+    /* Mobile helper */
+    @media (max-width:680px){
+      .sidebar{right:6px;left:6px;width:auto}
+      .topbar{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <div id="map" aria-hidden="true"></div>
+
+  <div class="topbar">
+    <div class="title">Amtrak Silver Meteor (NYP ↔ MIA)</div>
+    <nav class="links" aria-label="Realtime Links">
+      <a href="https://www.amtrak.com/track-your-train.html" target="_blank" rel="noopener">Amtrak • Track Your Train</a>
+      <a href="https://www.amtrak.com/train-status" target="_blank" rel="noopener">Amtrak • Train Status</a>
+      <a href="https://asm.transitdocs.com/" target="_blank" rel="noopener">TransitDocs • Live Map</a>
+    </nav>
+  </div>
+
+  <aside class="sidebar" aria-label="Station legend">
+    <div class="s-header">
+      <input id="search" placeholder="Filter stations… (e.g., Orlando, SunRail)" aria-label="Filter stations" />
+    </div>
+    <div id="stationList" class="station-list"></div>
+  </aside>
+
+  <script>
+  const stations = [
+    { key:"NYP", name:"New York Penn Station", city:"New York, NY", lat:40.752, lng:-73.994, connections:["NYC Subway","LIRR","NJ Transit","PATH","MTA Bus","Intercity Bus"] },
+    { key:"NWK", name:"Newark Penn Station", city:"Newark, NJ", lat:40.735, lng:-74.166, connections:["NJ Transit Rail & Bus","PATH","Newark Light Rail","Intercity Bus"] },
+    { key:"TRE", name:"Trenton Transit Center", city:"Trenton, NJ", lat:40.219, lng:-74.759, connections:["NJ Transit","SEPTA Regional Rail","SEPTA Bus","Amtrak"] },
+    { key:"PHL", name:"30th Street Station", city:"Philadelphia, PA", lat:39.956, lng:-75.182, connections:["SEPTA Rail/Metro/Bus","NJ Transit (AC Line)","Intercity Bus","Amtrak"] },
+    { key:"WIL", name:"Wilmington Station", city:"Wilmington, DE", lat:39.738, lng:-75.556, connections:["SEPTA Regional Rail","DART First State Bus","Intercity Bus","Amtrak"] },
+    { key:"BAL", name:"Baltimore Penn Station", city:"Baltimore, MD", lat:39.307, lng:-76.616, connections:["MARC Penn Line","Light RailLink","MTA Bus","Charm City Circulator"] },
+    { key:"BWI", name:"BWI Airport Rail Station", city:"Linthicum, MD", lat:39.2007, lng:-76.7589, connections:["MARC Penn Line","BWI Airport Shuttle","Light RailLink (via shuttle)","MTA LocalLink","UMBC Transit"] },
+    { key:"WAS", name:"Washington Union Station", city:"Washington, DC", lat:38.897, lng:-77.006, connections:["WMATA Metro Red Line","MARC (3 lines)","VRE (2 lines)","DC Streetcar","Metrobus/Intercity Bus"] },
+    { key:"ALX", name:"Alexandria Station", city:"Alexandria, VA", lat:38.806, lng:-77.063, connections:["WMATA Blue/Yellow Lines","VRE (2 lines)","DASH Bus","Metrobus"] },
+    { key:"FBG", name:"Fredericksburg Station", city:"Fredericksburg, VA", lat:38.3015, lng:-77.4565, connections:["VRE Fredericksburg Line","FRED Bus"] },
+    { key:"RVR", name:"Richmond Staples Mill Rd.", city:"Richmond, VA", lat:37.606, lng:-77.506, connections:["GRTC Bus"] },
+    { key:"PTB", name:"Petersburg (Ettrick)", city:"Petersburg, VA", lat:37.225, lng:-77.393, connections:["Petersburg Area Transit Bus"] },
+    { key:"RMT", name:"Rocky Mount Station", city:"Rocky Mount, NC", lat:35.951, lng:-77.794, connections:["Tar River Transit","Intercity Bus"] },
+    { key:"FAY", name:"Fayetteville Station", city:"Fayetteville, NC", lat:35.053, lng:-78.887, connections:["FAST City Bus","Taxi/Rideshare"] },
+    { key:"DIL", name:"Dillon Station", city:"Dillon, SC", lat:34.417, lng:-79.369, connections:["Local Taxi/Rideshare"] },
+    { key:"FLO", name:"Florence Station", city:"Florence, SC", lat:34.200, lng:-79.775, connections:["Pee Dee Regional Transit Bus"] },
+    { key:"KTR", name:"Kingstree Station", city:"Kingstree, SC", lat:33.669, lng:-79.829, connections:["Local Taxi/Rideshare"] },
+    { key:"NCH", name:"North Charleston Station", city:"North Charleston, SC", lat:32.884, lng:-80.016, connections:["CARTA Bus","Southeastern Stages Coach"] },
+    { key:"YEM", name:"Yemassee Station", city:"Yemassee, SC", lat:32.683, lng:-80.853, connections:["Taxi/Rideshare"] },
+    { key:"SAV", name:"Savannah Station", city:"Savannah, GA", lat:32.099, lng:-81.131, connections:["Chatham Area Transit Bus","Intercity Bus"] },
+    { key:"JSP", name:"Jesup Station", city:"Jesup, GA", lat:31.607, lng:-81.885, connections:["Taxi/Rideshare"] },
+    { key:"JAX", name:"Jacksonville Station", city:"Jacksonville, FL", lat:30.378, lng:-81.691, connections:["JTA City Bus","Amtrak Thruway Bus"] },
+    { key:"PAK", name:"Palatka Station", city:"Palatka, FL", lat:29.649, lng:-81.650, connections:["Ride Solution Bus"] },
+    { key:"DLD", name:"DeLand Station", city:"DeLand, FL", lat:29.026, lng:-81.292, connections:["SunRail (via Votran)","Votran Bus","Daytona Beach Thruway"] },
+    { key:"WPK", name:"Winter Park Station", city:"Winter Park, FL", lat:28.597, lng:-81.351, connections:["SunRail","LYNX Bus"] },
+    { key:"ORL", name:"Orlando Station", city:"Orlando, FL", lat:28.522, lng:-81.378, connections:["SunRail","LYNX Bus","Amtrak Thruway Bus"] },
+    { key:"KIS", name:"Kissimmee Station", city:"Kissimmee, FL", lat:28.292, lng:-81.408, connections:["SunRail","LYNX Bus","Intercity Bus"] },
+    { key:"WTH", name:"Winter Haven Station", city:"Winter Haven, FL", lat:28.022, lng:-81.728, connections:["Winter Haven Area Transit"] },
+    { key:"SBG", name:"Sebring Station", city:"Sebring, FL", lat:27.496, lng:-81.445, connections:["Taxi/Rideshare"] },
+    { key:"WPB", name:"West Palm Beach Station", city:"West Palm Beach, FL", lat:26.709, lng:-80.059, connections:["Tri-Rail","Brightline","Palm Tran Bus","Downtown Trolley"] },
+    { key:"DLB", name:"Delray Beach Station", city:"Delray Beach, FL", lat:26.461, lng:-80.085, connections:["Tri-Rail","Palm Tran Bus","Downtown Connector"] },
+    { key:"DFB", name:"Deerfield Beach Station", city:"Deerfield Beach, FL", lat:26.314, lng:-80.100, connections:["Tri-Rail","Broward County Transit","Tri-Rail Connector Bus"] },
+    { key:"FTL", name:"Fort Lauderdale Station", city:"Fort Lauderdale, FL", lat:26.119, lng:-80.162, connections:["Tri-Rail","Broward County Transit","Sun Trolley"] },
+    { key:"HOL", name:"Hollywood Station", city:"Hollywood, FL", lat:26.011, lng:-80.164, connections:["Tri-Rail","Broward County Transit","Community Bus"] },
+    { key:"MIA", name:"Miami Station", city:"Miami, FL", lat:25.778, lng:-80.194, connections:["Metrorail (via MIA Mover)","Metrobus","Tri-Rail (Airport Station)","Brightline (MiamiCentral, connection)"] },
+  ];
+
+  // Build map
+  const map = L.map('map', {
+    zoomControl: false,
+    scrollWheelZoom: true,
+    worldCopyJump: true
+  }).setView([34.5, -79.5], 6);
+
+  // Provider chain with graceful fallback to avoid OSM policy blocks
+let baseLayer;
+const providers = [
+  {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    options: {
+      subdomains: 'abcd',
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · © <a href="https://carto.com/attributions">CARTO</a>'
+    }
+  },
+  {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      maxZoom: 20,
+      attribution: 'Tiles © Esri — sources: Esri, HERE, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors'
+    }
+  }
+];
+
+function useProvider(i=0){
+  if(i >= providers.length) return;
+  const p = providers[i];
+  baseLayer = L.tileLayer(p.url, p.options).addTo(map);
+  let switched = false;
+  baseLayer.on('tileerror', function(){
+    if(switched) return; // prevent multiple switches
+    switched = true;
+    try { map.removeLayer(baseLayer); } catch(e){}
+    useProvider(i+1);
+  });
+}
+useProvider();
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+
+  // Polyline through the route (in current array order)
+  const latlngs = stations.map(s => [s.lat, s.lng]);
+  const route = L.polyline(latlngs, { color:'#00a2e8', weight:4, opacity:.8 }).addTo(map);
+  map.fitBounds(route.getBounds().pad(0.08));
+
+  // Markers and popups
+  const markers = new Map();
+  const defaultStyle = { radius:6, color:'#001b2a', weight:1, fillColor:'#ff6f00', fillOpacity:.9 };
+  const activeStyle  = { radius:9, color:'#00b0ff', weight:2, fillColor:'#00b0ff', fillOpacity:1 };
+
+  function makePopupHTML(s){
+    const list = s.connections?.length ? '<ul>' + s.connections.map(c=>`<li>${c}</li>`).join('') + '</ul>' : '<em>No listed connections</em>';
+    return `<h3 style="margin:.1rem 0 .25rem 0;font-size:1rem;color:#082c44;">${s.name}</h3>
+            <div style="font-size:.85rem;color:#1c4662;margin-bottom:.25rem;">${s.city}</div>
+            <div style="font-size:.9rem;">${list}</div>`
+  }
+
+  stations.forEach(s => {
+    const m = L.circleMarker([s.lat, s.lng], defaultStyle).addTo(map);
+    m.bindPopup(makePopupHTML(s));
+    markers.set(s.key, m);
+
+    m.on('click', () => highlightStop(s.key, {center:true, from:"marker"}));
+  });
+
+  let activeKey = null;
+  function setMarkerStyle(key, style){
+    const m = markers.get(key);
+    if(!m) return;
+    m.setStyle(style);
+    if(style === activeStyle){ m.bringToFront(); }
+  }
+
+  function highlightStop(key, opts={}){
+    if(activeKey && markers.has(activeKey)){
+      setMarkerStyle(activeKey, defaultStyle);
+      const prevEl = document.querySelector(`[data-key="${activeKey}"]`);
+      if(prevEl) prevEl.classList.remove('active');
+    }
+    activeKey = key;
+    const s = stations.find(x=>x.key===key);
+    const marker = markers.get(key);
+    if(!s || !marker) return;
+
+    // style + popup + pan
+    setMarkerStyle(key, activeStyle);
+    if(opts.center){
+      map.flyTo([s.lat, s.lng], Math.max(map.getZoom(), 8), { duration: .6 });
+    }
+    marker.openPopup();
+
+    // focus corresponding list item
+    const el = document.querySelector(`[data-key="${key}"]`);
+    if(el){
+      el.classList.add('active');
+      el.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+  }
+
+  // Sidebar list builder
+  const listEl = document.getElementById('stationList');
+  function renderList(filter=""){
+    listEl.innerHTML = '';
+    const q = filter.trim().toLowerCase();
+    stations.forEach(s => {
+      const hay = `${s.name} ${s.city} ${(s.connections||[]).join(' ')}`.toLowerCase();
+      if(q && !hay.includes(q)) return;
+      const item = document.createElement('div');
+      item.className = 'station';
+      item.dataset.key = s.key;
+      item.innerHTML = `<span class="dot" aria-hidden="true"></span>
+        <div class="info">
+          <h3>${s.name}</h3>
+          <p>${s.city}</p>
+          <details>
+            <summary>Connections</summary>
+            <ul>${(s.connections||[]).map(c=>`<li>${c}</li>`).join('')}</ul>
+          </details>
+        </div>`;
+
+      item.addEventListener('mouseenter', () => highlightStop(s.key, {center:false, from:'list-hover'}));
+      item.addEventListener('focus', () => highlightStop(s.key, {center:false, from:'list-focus'}));
+      item.addEventListener('click', () => highlightStop(s.key, {center:true, from:'list-click'}));
+
+      listEl.appendChild(item);
+    });
+  }
+
+  renderList();
+
+  // Filter box
+  const search = document.getElementById('search');
+  search.addEventListener('input', (e)=>renderList(e.target.value));
+
+  // Preselect a central stop for visual context
+  setTimeout(()=>highlightStop('ORL', {center:false}), 450);
+  </script>
+</body>
+</html>

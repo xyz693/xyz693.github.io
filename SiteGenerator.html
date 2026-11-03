@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Microcosm · One-page site foundry</title>
+<style>
+:root{color-scheme:dark;--bg:#070b10;--panel:#0d141c;--panel2:#111b25;--line:#ffffff1c;--ink:#edf0ec;--muted:#94a2ad;--accent:#e8a457;--accent2:#7fc6b6;--danger:#ef9d88}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{height:64px;padding:0 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:#080d13;position:sticky;top:0;z-index:10}.brand{display:flex;align-items:center;gap:12px}.mark{width:28px;height:28px;border:1px solid var(--accent);border-radius:50%;display:grid;place-items:center;color:var(--accent);font:11px ui-monospace,monospace}.brand strong{display:block;font:600 13px ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.08em}.header-actions{display:flex;gap:8px}
+button,.file-button{border:1px solid var(--line);background:#141d27;color:var(--ink);padding:9px 12px;border-radius:3px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px}.primary{border-color:#e8a45799;background:#e8a45718;color:#ffd59f}.quiet{background:transparent}.danger{color:var(--danger)}button:hover,.file-button:hover{border-color:#ffffff45}.file-button input{position:absolute;opacity:0;pointer-events:none}
+.app{display:grid;grid-template-columns:minmax(320px,410px) 1fr;height:calc(100dvh - 64px)}.workbench{overflow:auto;border-right:1px solid var(--line);background:var(--panel)}.section{padding:20px 22px;border-bottom:1px solid var(--line)}.section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:14px}.section h2{font:600 11px ui-monospace,monospace;letter-spacing:.17em;text-transform:uppercase;margin:0}.section-head span,.hint{color:var(--muted);font-size:11px}.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.preset{min-height:80px;padding:12px;align-items:flex-start;justify-content:flex-end;flex-direction:column;text-align:left;position:relative;overflow:hidden}.preset:before{content:"";position:absolute;inset:0 0 auto;height:7px;background:var(--swatch)}.preset strong{font-size:12px}.preset small{color:var(--muted);font-size:10px}.preset[aria-pressed="true"]{border-color:var(--swatch);background:#ffffff0c}
+.fields{display:grid;gap:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:grid;gap:5px;color:#b9c3ca;font-size:11px}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:3px;background:#070c12;color:var(--ink);padding:9px 10px}textarea{resize:vertical;min-height:72px}.color-field{grid-template-columns:46px 1fr;align-items:center}.color-field input[type=color]{height:38px;padding:3px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:9px;background:#080e14}.check input{width:auto}.service{border-left:2px solid #ffffff18;padding-left:12px}.service+.service{margin-top:12px}.service input{margin-bottom:6px}
+.stage{min-width:0;display:grid;grid-template-rows:auto 1fr;background:radial-gradient(circle at 50% 15%,#172330,#070b10 65%)}.stagebar{height:54px;padding:0 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px}.stagebar p{margin:0;color:var(--muted);font-size:11px}.view-switch{display:flex}.view-switch button{border-radius:0;padding:7px 10px}.view-switch button[aria-pressed=true]{color:var(--accent);border-color:#e8a45788;background:#e8a45710}.canvas-wrap{min-height:0;overflow:auto;display:grid;place-items:start center;padding:26px}.canvas{width:min(100%,1100px);height:min(720px,calc(100dvh - 145px));min-height:520px;background:#fff;box-shadow:0 25px 80px #0008;transition:width .25s ease}.canvas.phone{width:390px;max-width:100%;height:740px}.canvas iframe{width:100%;height:100%;border:0;background:white}.status{color:var(--accent2)!important}.status.error{color:var(--danger)!important}
+dialog{width:min(680px,calc(100% - 30px));max-height:80vh;padding:0;border:1px solid var(--line);background:#0b121a;color:var(--ink);box-shadow:0 30px 100px #000b}dialog::backdrop{background:#000a}.dialog-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.dialog-head h2{font:600 12px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0}.dialog-body{padding:18px}.dialog-body textarea{height:45vh;font:11px/1.5 ui-monospace,monospace;white-space:pre}.dialog-actions{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
+@media(max-width:900px){header{padding:0 14px}.brand small{display:none}.header-actions .optional{display:none}.app{grid-template-columns:1fr;height:auto}.workbench{border-right:0;max-height:none}.stage{min-height:760px}.stagebar{position:sticky;top:64px;background:#0a1119;z-index:5}.canvas-wrap{padding:15px}.canvas{height:680px;min-height:0}.canvas.phone{height:700px}.two{grid-template-columns:1fr}.checks{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){header{height:58px}.app{height:auto}.mark{display:none}.header-actions{gap:5px}.header-actions button,.header-actions .file-button{padding:8px;font-size:11px}.section{padding:18px 14px}.preset-grid{grid-template-columns:1fr 1fr}.stagebar{top:58px;padding:0 12px}.stagebar p{display:none}.canvas-wrap{padding:8px}.canvas{height:620px}.canvas.phone{width:100%;height:680px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark">M</span><span><strong>Microcosm</strong><small>one-page site foundry · local first</small></span></div>
+  <div class="header-actions">
+    <button id="reset" class="quiet danger optional" type="button">New</button>
+    <label class="file-button" for="projectImport">Import<input id="projectImport" type="file" accept="application/json,.json,.microcosm"></label>
+    <button id="projectExport" type="button">Project</button>
+    <button id="htmlExport" class="primary" type="button">Download HTML</button>
+  </div>
+</header>
+<main class="app">
+  <form id="editor" class="workbench" autocomplete="off">
+    <section class="section">
+      <div class="section-head"><h2>Starting points</h2><span>Choose, then make it yours</span></div>
+      <div id="presetGrid" class="preset-grid"></div>
+    </section>
+    <section class="section fields">
+      <div class="section-head"><h2>Identity</h2><span>Saved in this browser</span></div>
+      <label>Name<input id="name" maxlength="80"></label>
+      <label>Tagline<input id="tagline" maxlength="120"></label>
+      <label>About<textarea id="about" maxlength="700"></textarea></label>
+      <div class="two">
+        <label class="color-field">Accent<input id="color" type="color"><input id="colorText" aria-label="Accent color hex" maxlength="7"></label>
+        <label>Character<select id="character"><option value="clean">Clean studio</option><option value="field">Field notes</option><option value="night">Night signal</option><option value="warm">Warm workshop</option></select></label>
+      </div>
+      <div class="checks">
+        <label class="check"><input id="dark" type="checkbox">Dark page</label>
+        <label class="check"><input id="compact" type="checkbox">Compact rhythm</label>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-head"><h2>Three offerings</h2><span>Short, specific, useful</span></div>
+      <div id="services"></div>
+    </section>
+    <section class="section fields">
+      <div class="section-head"><h2>Contact</h2><span>Optional</span></div>
+      <div class="two"><label>Email<input id="email" type="email"></label><label>Phone<input id="phone"></label></div>
+      <label>Location<input id="location"></label>
+      <p class="hint">Everything stays in one HTML file. No framework, build step, account, or external font is required.</p>
+    </section>
+  </form>
+  <section class="stage" aria-label="Live site preview">
+    <div class="stagebar"><p id="status" class="status" role="status">Draft ready.</p><div class="view-switch" aria-label="Preview width"><button id="desktopView" type="button" aria-pressed="true">Desktop</button><button id="phoneView" type="button" aria-pressed="false">Phone</button><button id="codeView" type="button">Code</button></div></div>
+    <div class="canvas-wrap"><div id="canvas" class="canvas"><iframe id="preview" title="Generated website preview" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe></div></div>
+  </section>
+</main>
+<dialog id="codeDialog"><div class="dialog-head"><h2>Generated HTML</h2><button id="closeCode" class="quiet" type="button">Close</button></div><div class="dialog-body"><textarea id="siteCode" readonly spellcheck="false"></textarea></div><div class="dialog-actions"><button id="copyCode" type="button">Copy</button><button id="codeDownload" class="primary" type="button">Download HTML</button></div></dialog>
+<script>
+const STORAGE_KEY='microcosm-project-v2',SCHEMA=2;
+const presets={
+  studio:{label:'Small studio',note:'Crisp and practical',swatch:'#e89a47',data:{name:'Microcosm Studio',tagline:'Small sites with a clear point of view.',about:'We build focused digital experiences for independent organizations. Every page is lightweight, direct, and made to remain useful.',color:'#e89a47',character:'clean',dark:false,compact:false,email:'hello@example.com',phone:'',location:'Daytona Beach, Florida',services:[['Launch page','A concise home for a new service, event, or idea.'],['Visual refresh','A sharper palette, type system, and visual rhythm.'],['Care plan','Small, dependable updates without a complicated stack.']]}},
+  field:{label:'Field project',note:'Scientific and tactile',swatch:'#79a978',data:{name:'Estuary Field Lab',tagline:'Measurements from the waterline.',about:'An independent field project documenting tidal habitats through patient observation, open instruments, and clearly explained data.',color:'#79a978',character:'field',dark:false,compact:true,email:'fieldnotes@example.com',phone:'',location:'Volusia County, Florida',services:[['Site surveys','Repeatable observations of water, weather, and habitat.'],['Open instruments','Small sensing tools built for repair and calibration.'],['Field notes','Readable reports that connect measurements to place.']]}},
+  signal:{label:'Night signal',note:'Dark and atmospheric',swatch:'#73b8d1',data:{name:'Night Signal',tagline:'Useful transmissions after dark.',about:'A small broadcast studio for nocturnal experiments, coastal recordings, and strange little instruments.',color:'#73b8d1',character:'night',dark:true,compact:false,email:'signal@example.com',phone:'',location:'Atlantic coast',services:[['Broadcasts','Short transmissions assembled from sound, image, and code.'],['Instruments','Browser tools for navigating time, weather, and place.'],['Archive','Selected recordings and field fragments.']]}},
+  workshop:{label:'Local workshop',note:'Warm and neighborly',swatch:'#d87754',data:{name:'Orange Bench Works',tagline:'Repair, adaptation, and odd useful things.',about:'A neighborhood workshop giving overlooked objects another useful life through careful repair and small-batch fabrication.',color:'#d87754',character:'warm',dark:false,compact:false,email:'bench@example.com',phone:'(555) 013-0693',location:'Central Florida',services:[['Repair','Patient diagnosis and practical fixes.'],['Adaptation','Old equipment altered for a new job.'],['Small batches','Short production runs of useful peculiar objects.']]}}
+};
+const $=id=>document.getElementById(id), ids=['name','tagline','about','color','character','dark','compact','email','phone','location'];
+let activePreset='studio',saveTimer=0,currentHTML='';
+function clone(value){return JSON.parse(JSON.stringify(value))}
+function safeStorage(){try{const x='__microcosm_test__';localStorage.setItem(x,x);localStorage.removeItem(x);return localStorage}catch(e){return null}}
+const storage=safeStorage();
+function normalize(raw){
+  const fallback=clone(presets.studio.data),d=raw&&typeof raw==='object'?raw:{};
+  const text=(v,f,max)=>typeof v==='string'?v.slice(0,max):f;
+  const color=/^#[0-9a-f]{6}$/i.test(d.color||'')?d.color:fallback.color;
+  const character=['clean','field','night','warm'].includes(d.character)?d.character:fallback.character;
+  const services=Array.isArray(d.services)?d.services.slice(0,3).map((s,i)=>[text(s&&s[0],fallback.services[i][0],80),text(s&&s[1],fallback.services[i][1],240)]):fallback.services;
+  while(services.length<3)services.push(fallback.services[services.length]);
+  return {name:text(d.name,fallback.name,80),tagline:text(d.tagline,fallback.tagline,120),about:text(d.about,fallback.about,700),color,character,dark:Boolean(d.dark),compact:Boolean(d.compact),email:text(d.email,'',120),phone:text(d.phone,'',60),location:text(d.location,'',140),services};
+}
+function readForm(){return normalize({name:$('name').value,tagline:$('tagline').value,about:$('about').value,color:$('colorText').value,character:$('character').value,dark:$('dark').checked,compact:$('compact').checked,email:$('email').value,phone:$('phone').value,location:$('location').value,services:[0,1,2].map(i=>[$('serviceTitle'+i).value,$('serviceDesc'+i).value])})}
+function writeForm(data){const d=normalize(data);for(const id of ids){if(id==='dark'||id==='compact')$(id).checked=d[id];else $(id).value=d[id]}$('colorText').value=d.color;d.services.forEach((s,i)=>{$('serviceTitle'+i).value=s[0];$('serviceDesc'+i).value=s[1]});render()}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function attr(s){return esc(s).replace(/`/g,'&#96;')}
+function filename(name,ext){const base=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,48)||'microcosm';return base+ext}
+function makeSite(d){
+  const themes={clean:{bg:'#fbfaf6',surface:'#f1eee6',ink:'#20262a',muted:'#647078',serif:'Georgia,serif'},field:{bg:'#f4f1e5',surface:'#e5e2d1',ink:'#25322a',muted:'#647064',serif:'Georgia,serif'},night:{bg:'#071017',surface:'#101e28',ink:'#edf3f2',muted:'#92aab1',serif:'Georgia,serif'},warm:{bg:'#fcf2e5',surface:'#f2dfc8',ink:'#34251e',muted:'#79665b',serif:'Georgia,serif'}};
+  const t=themes[d.character],bg=d.dark?'#081017':t.bg,surface=d.dark?'#111e27':t.surface,ink=d.dark?'#edf3f2':t.ink,muted=d.dark?'#93a5ad':t.muted,pad=d.compact?'clamp(45px,7vw,80px)':'clamp(70px,11vw,145px)';
+  const contact=[d.email?'<a href="mailto:'+attr(d.email)+'">'+esc(d.email)+'</a>':'',d.phone?'<a href="tel:'+attr(d.phone.replace(/[^+\d]/g,''))+'">'+esc(d.phone)+'</a>':'',d.location?'<span>'+esc(d.location)+'</span>':''].filter(Boolean).join('');
+  return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>'+esc(d.name)+'</title>\n<style>\n:root{--accent:'+d.color+';--bg:'+bg+';--surface:'+surface+';--ink:'+ink+';--muted:'+muted+'}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}header,main,footer{max-width:1120px;margin:auto;padding-left:clamp(22px,5vw,64px);padding-right:clamp(22px,5vw,64px)}nav{height:74px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid color-mix(in srgb,var(--ink) 16%,transparent)}nav strong{font-size:13px;letter-spacing:.12em;text-transform:uppercase}nav a{color:var(--muted);text-decoration:none;font-size:13px}.hero{padding-top:'+pad+';padding-bottom:'+pad+';display:grid;grid-template-columns:minmax(0,1.6fr) minmax(180px,.4fr);gap:40px;align-items:end}.kicker{color:var(--accent);font:11px ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase}.hero h1{font:400 clamp(48px,8vw,104px)/.94 '+t.serif+';letter-spacing:-.045em;margin:17px 0 25px;max-width:900px}.hero p{color:var(--muted);max-width:590px;font-size:clamp(16px,2vw,20px)}.orb{width:min(100%,210px);aspect-ratio:1;border:1px solid var(--accent);border-radius:50%;position:relative;justify-self:end}.orb:before,.orb:after{content:"";position:absolute;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);border-radius:50%;inset:18%}.orb:after{inset:39%;background:var(--accent)}section{padding:70px 0;border-top:1px solid color-mix(in srgb,var(--ink) 16%,transparent)}h2{font:400 clamp(30px,4vw,52px)/1.1 '+t.serif+';margin:0 0 30px}.about{display:grid;grid-template-columns:.65fr 1.35fr;gap:45px}.about p{font-size:clamp(17px,2vw,23px);margin:0}.services{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.service{background:var(--surface);padding:28px;min-height:210px;border-top:3px solid var(--accent)}.service b{display:block;font:11px ui-monospace,monospace;color:var(--accent);letter-spacing:.15em;margin-bottom:45px}.service h3{font:400 24px '+t.serif+';margin:0 0 12px}.service p{color:var(--muted);margin:0}.contact{display:flex;flex-wrap:wrap;gap:12px 28px}.contact a,.contact span{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:4px}footer{padding-top:30px;padding-bottom:35px;color:var(--muted);font-size:12px}@media(max-width:680px){.hero{grid-template-columns:1fr}.orb{width:100px;justify-self:start}.about{grid-template-columns:1fr}.services{grid-template-columns:1fr}.service{min-height:0}.service b{margin-bottom:25px}}\n</style>\n</head>\n<body>\n<header><nav><strong>'+esc(d.name)+'</strong><a href="#contact">Contact</a></nav><div class="hero"><div><div class="kicker">Independent · focused · useful</div><h1>'+esc(d.tagline)+'</h1><p>'+esc(d.about)+'</p></div><div class="orb" aria-hidden="true"></div></div></header>\n<main><section class="about"><h2>About</h2><p>'+esc(d.about)+'</p></section><section><h2>What we do</h2><div class="services">'+d.services.map((s,i)=>'<article class="service"><b>0'+(i+1)+'</b><h3>'+esc(s[0])+'</h3><p>'+esc(s[1])+'</p></article>').join('')+'</div></section><section id="contact"><h2>Start a conversation.</h2><div class="contact">'+contact+'</div></section></main>\n<footer>© '+new Date().getFullYear()+' '+esc(d.name)+' · Built as one portable HTML file.</footer>\n</body>\n</html>';
+}
+function setStatus(message,error=false){$('status').textContent=message;$('status').classList.toggle('error',error)}
+function render(){const d=readForm();currentHTML=makeSite(d);$('preview').srcdoc=currentHTML;$('siteCode').value=currentHTML;clearTimeout(saveTimer);saveTimer=setTimeout(()=>{if(storage){try{storage.setItem(STORAGE_KEY,JSON.stringify({schema:SCHEMA,data:d}));setStatus('Draft saved locally.')}catch(e){setStatus('Preview updated; browser storage is unavailable.',true)}}else setStatus('Preview updated; browser storage is unavailable.')},250)}
+function download(name,type,text){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type}));a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function selectPreset(id){activePreset=id;document.querySelectorAll('.preset').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));writeForm(presets[id].data);setStatus(presets[id].label+' preset applied.')}
+for(const [id,p] of Object.entries(presets)){const b=document.createElement('button');b.type='button';b.className='preset';b.dataset.id=id;b.style.setProperty('--swatch',p.swatch);b.innerHTML='<strong>'+esc(p.label)+'</strong><small>'+esc(p.note)+'</small>';b.onclick=()=>selectPreset(id);$('presetGrid').append(b)}
+for(let i=0;i<3;i++){$('services').insertAdjacentHTML('beforeend','<div class="service"><input id="serviceTitle'+i+'" aria-label="Offering '+(i+1)+' title" maxlength="80"><textarea id="serviceDesc'+i+'" aria-label="Offering '+(i+1)+' description" maxlength="240"></textarea></div>')}
+$('editor').addEventListener('input',e=>{if(e.target.id==='color')$('colorText').value=e.target.value;if(e.target.id==='colorText'&&/^#[0-9a-f]{6}$/i.test(e.target.value))$('color').value=e.target.value;activePreset='';document.querySelectorAll('.preset').forEach(b=>b.setAttribute('aria-pressed','false'));render()});$('editor').addEventListener('change',render);
+function setView(phone){$('canvas').classList.toggle('phone',phone);$('desktopView').setAttribute('aria-pressed',String(!phone));$('phoneView').setAttribute('aria-pressed',String(phone))}$('desktopView').onclick=()=>setView(false);$('phoneView').onclick=()=>setView(true);
+$('projectExport').onclick=()=>{const d=readForm();download(filename(d.name,'.microcosm.json'),'application/json',JSON.stringify({format:'microcosm-project',schema:SCHEMA,exportedAt:new Date().toISOString(),data:d},null,2));setStatus('Portable project file downloaded.')};
+$('projectImport').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;try{if(file.size>200000)throw Error('Project file is too large.');const parsed=JSON.parse(await file.text());if(parsed.format!=='microcosm-project'||!parsed.data)throw Error('Not a Microcosm project file.');writeForm(parsed.data);setStatus('Project imported and validated.')}catch(err){setStatus(err.message||'Could not import project.',true)}};
+function exportHTML(){const d=readForm();download(filename(d.name,'.html'),'text/html;charset=utf-8',currentHTML);setStatus('Standalone HTML downloaded.')}$('htmlExport').onclick=exportHTML;$('codeDownload').onclick=exportHTML;
+$('codeView').onclick=()=>{if(typeof $('codeDialog').showModal==='function')$('codeDialog').showModal();else $('codeDialog').setAttribute('open','')};$('closeCode').onclick=()=>$('codeDialog').close();$('codeDialog').addEventListener('click',e=>{if(e.target===$('codeDialog'))$('codeDialog').close()});
+$('copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(currentHTML);setStatus('HTML copied.')}catch(e){$('siteCode').select();document.execCommand('copy');setStatus('HTML copied with browser fallback.')}};
+$('reset').onclick=()=>{if(!confirm('Start a new site from the Small studio preset?'))return;if(storage)storage.removeItem(STORAGE_KEY);selectPreset('studio')};
+let initial=null;if(storage){try{const saved=JSON.parse(storage.getItem(STORAGE_KEY));if(saved&&saved.schema===SCHEMA)initial=saved.data}catch(e){}}
+if(initial){activePreset='';writeForm(initial);setStatus('Restored your local draft.')}else selectPreset('studio');
+</script>
+</body>
+</html>

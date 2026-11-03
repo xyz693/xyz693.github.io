@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Daytona Beach Tide, Sun & Moon Widgets</title>
+<style>
+  html,body{margin:0;height:100%;width:100%;overflow:hidden;background:linear-gradient(to bottom right,#0e3d59,#0a2d42);font-family:Georgia,serif}
+  #workspace{position:relative;width:100%;height:100%}
+
+  /* Movable widget cards */
+  .widget{position:absolute;cursor:grab;user-select:none;touch-action:none;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);box-shadow:0 0 20px rgba(0,0,0,.5);transition:transform .1s ease}
+  .widget:active{cursor:grabbing;transform:scale(1.01)}
+  .widget-header{display:flex;justify-content:flex-end;margin-bottom:5px}
+  .close-btn{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.6;transition:opacity .2s}
+  .close-btn:hover{opacity:1}
+  canvas{display:block;border-radius:50%;box-shadow:0 0 12px rgba(0,0,0,.6)}
+
+  /* Profile/info tile body */
+  .info-card{background:rgba(255,255,255,.95);color:#002b45;border-radius:8px;padding:12px;min-width:260px;max-width:360px;max-height:460px;overflow:auto;box-shadow:0 4px 15px rgba(0,0,0,.3);font-family:sans-serif}
+  .info-card h3{margin:0 0 6px 0;font-weight:700;font-size:16px;color:#004a75}
+  #infoTable{border-collapse:collapse;width:100%;font-size:14px}
+  #infoTable td{padding:4px 8px;vertical-align:top}
+  #infoTable td:first-child{font-weight:bold;color:#004a75}
+
+  /* Add-widget launcher */
+  #add-widget-btn{position:fixed;top:15px;right:15px;background:#006c7a;color:#fff;border:none;padding:10px 15px;border-radius:5px;cursor:pointer;font-size:16px;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:background .3s ease;z-index:200}
+  #add-widget-btn:hover{background:#005a67}
+  #add-widget-menu{position:fixed;top:60px;right:15px;background:rgba(255,255,255,.95);border-radius:5px;box-shadow:0 2px 10px rgba(0,0,0,.2);padding:10px;display:none;flex-direction:column;z-index:200}
+  #add-widget-menu button{background:#004a75;color:#fff;border:none;padding:8px 12px;margin:5px 0;border-radius:4px;cursor:pointer;transition:background .3s ease}
+  #add-widget-menu button:hover{background:#003a60}
+
+  .loading-spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;border-radius:50%;width:20px;height:20px;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-left:10px}
+  @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="workspace">
+  <!-- Tide -->
+  <div class="widget" id="tideWidget" style="top:20px;left:20px">
+    <div class="widget-header"><button class="close-btn" data-widget="tideWidget">×</button></div>
+    <canvas id="tideDial" width="400" height="400"></canvas>
+  </div>
+  <!-- Sun / Daylight -->
+  <div class="widget" id="sunWidget" style="top:20px;left:450px">
+    <div class="widget-header"><button class="close-btn" data-widget="sunWidget">×</button></div>
+    <canvas id="sunDial" width="400" height="400"></canvas>
+  </div>
+  <!-- Analog clock -->
+  <div class="widget" id="clockWidget" style="top:450px;left:20px">
+    <div class="widget-header"><button class="close-btn" data-widget="clockWidget">×</button></div>
+    <canvas id="clockDial" width="400" height="400"></canvas>
+  </div>
+  <!-- Profile/Info -->
+  <div class="widget" id="infoWidget" style="top:450px;left:450px">
+    <div class="widget-header"><button class="close-btn" data-widget="infoWidget">×</button></div>
+    <div class="info-card">
+      <h3>Daytona Beach — Tides • Sun • Moon</h3>
+      <table id="infoTable">
+        <tr><td>Loading… <span class="loading-spinner"></span></td></tr>
+      </table>
+    </div>
+  </div>
+  <!-- NEW: Moon widget -->
+  <div class="widget" id="moonWidget" style="top:20px;left:880px">
+    <div class="widget-header"><button class="close-btn" data-widget="moonWidget">×</button></div>
+    <canvas id="moonDial" width="400" height="400"></canvas>
+  </div>
+</div>
+
+<button id="add-widget-btn">Add Widget</button>
+<div id="add-widget-menu"></div>
+
+<script type="module">
+import SunCalc from 'https://cdn.jsdelivr.net/npm/suncalc@1.9.0/+esm';
+
+const LAT = 29.2108;
+const LON = -81.0228;
+const STATION = '8721120';
+const INCLUDE_TWILIGHT_IN_DAY = true; // set false to restrict “day” to sunrise→sunset
+
+// DOM
+const workspace = document.getElementById('workspace');
+const tideWidget  = document.getElementById('tideWidget');
+const sunWidget   = document.getElementById('sunWidget');
+const clockWidget = document.getElementById('clockWidget');
+const infoWidget  = document.getElementById('infoWidget');
+const moonWidget  = document.getElementById('moonWidget');
+
+const tideCv = document.getElementById('tideDial');
+const sunCv  = document.getElementById('sunDial');
+const clockCv= document.getElementById('clockDial');
+const moonCv = document.getElementById('moonDial');
+
+const tideCtx  = tideCv.getContext('2d');
+const sunCtx   = sunCv.getContext('2d');
+const clockCtx = clockCv.getContext('2d');
+const moonCtx  = moonCv.getContext('2d');
+
+const infoTbl = document.getElementById('infoTable');
+const addWidgetBtn  = document.getElementById('add-widget-btn');
+const addWidgetMenu = document.getElementById('add-widget-menu');
+
+// State
+let tideAngle = 0;
+let lastTide=null, nextTide=null;
+let sunrise=null, sunset=null, nextSunrise=null, nextSunset=null;
+let dawn=null, dusk=null, nextDawn=null, nextDusk=null;
+
+// Moon state
+let moonIllum = null; // {fraction, phase, angle}
+let moonPos   = null; // {altitude(rad), azimuth(rad)}
+let moonTimesToday=null, moonTimesTomorrow=null;
+let nextMoonrise=null, nextMoonset=null;
+
+// Helpers
+const timeFmt = d => d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : 'N/A';
+const dateAddDays = (date,days)=>{const d=new Date(date); d.setDate(d.getDate()+days); return d;};
+function timeToAngle(date){ const h = date.getHours()+date.getMinutes()/60+date.getSeconds()/3600; return (h/24)*2*Math.PI; }
+function timeRemaining(eventTime){ if(!eventTime) return 'N/A'; const diffMs = eventTime - new Date(); if(diffMs < 0) return 'Passed'; const s = Math.floor(diffMs/1000); const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return `${h}h ${m}m`; }
+
+function drawDialBase(ctx){
+  ctx.save();
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+
+  ctx.beginPath(); ctx.lineWidth=24; ctx.strokeStyle='#5b371a';
+  ctx.arc(0,0,ctx.canvas.width/2-4,0,2*Math.PI); ctx.stroke();
+
+  ctx.beginPath(); ctx.lineWidth=14; ctx.setLineDash([10,10]); ctx.strokeStyle='#d4b48a';
+  ctx.arc(0,0,ctx.canvas.width/2-40,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+
+  ctx.fillStyle='#f9f3d6'; ctx.beginPath();
+  ctx.arc(0,0,ctx.canvas.width/2-50,0,2*Math.PI); ctx.fill();
+  ctx.restore();
+}
+function drawHand(ctx, angle, length, width, color){
+  ctx.save(); ctx.rotate(angle); ctx.strokeStyle=color; ctx.lineWidth=width; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-length); ctx.stroke(); ctx.restore();
+}
+
+/* ── Tide dial ───────────────────────────────────────────────────────────── */
+function drawTide(){
+  const ctx = tideCtx, R = ctx.canvas.width/2-60;
+  drawDialBase(ctx);
+  ctx.save(); ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+
+  ctx.strokeStyle='#006c7a'; ctx.lineWidth=10;
+  for(let i=0;i<4;i++){ ctx.save(); ctx.rotate(i*Math.PI/2); ctx.beginPath(); ctx.moveTo(0,-R); ctx.lineTo(0,-R-20); ctx.stroke(); ctx.restore(); }
+
+  ctx.fillStyle='#133b4b'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='42px Georgia';
+  ctx.fillText('HIGH',0,-R+60); ctx.fillText('TIDE',0,-R+100);
+  ctx.fillText('LOW',0, R-100); ctx.fillText('TIDE',0, R-60);
+  ctx.font='28px Georgia'; ctx.fillText('6 hrs',-R+90,0); ctx.fillText('6 hrs',R-90,0);
+
+  ctx.rotate(tideAngle);
+  ctx.fillStyle='#002b45';
+  ctx.beginPath();
+  ctx.moveTo(-5,0); ctx.lineTo(-5,-15); ctx.lineTo(0,-R+10); ctx.lineTo(5,-15); ctx.lineTo(5,0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ── Sun / daylight dial (with midnight wrap fixes) ─────────────────────── */
+function arcCWWrap(ctx, r, start, end){
+  while(end < start) end += 2*Math.PI; // ensure clockwise progression
+  ctx.arc(0,0,r,start,end,false);
+}
+function drawSun(){
+  const ctx = sunCtx, R = ctx.canvas.width/2-60;
+  drawDialBase(ctx);
+
+  if(!sunrise || !sunset){
+    ctx.save(); ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+    ctx.fillStyle='#133b4b'; ctx.font='24px Georgia'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Loading Sun Data...',0,0); ctx.restore(); return;
+  }
+
+  const ang = d => timeToAngle(d) - Math.PI/2; // place 12 o'clock at top
+  ctx.save(); ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+
+  // NIGHT: from (dusk|sunset) to (next dawn|next sunrise)
+  const nightStart = (INCLUDE_TWILIGHT_IN_DAY && dusk) ? dusk : sunset;
+  const nightEnd   = (INCLUDE_TWILIGHT_IN_DAY && nextDawn) ? nextDawn : nextSunrise;
+  ctx.beginPath(); ctx.lineWidth=16; ctx.strokeStyle='rgba(0,0,0,0.30)';
+  arcCWWrap(ctx, R, ang(nightStart), ang(nightEnd)); ctx.stroke();
+
+  // TWILIGHT bands (dawn and dusk)
+  if (dawn && sunrise) {
+    ctx.beginPath(); ctx.lineWidth=16; ctx.strokeStyle='rgba(100,100,255,0.30)';
+    arcCWWrap(ctx, R, ang(dawn), ang(sunrise)); ctx.stroke();
+  }
+  if (sunset && dusk) {
+    ctx.beginPath(); ctx.lineWidth=16; ctx.strokeStyle='rgba(100,100,255,0.30)';
+    arcCWWrap(ctx, R, ang(sunset), ang(dusk)); ctx.stroke();
+  }
+
+  // DAY: dawn→dusk (or sunrise→sunset)
+  const dayStart = (INCLUDE_TWILIGHT_IN_DAY && dawn) ? dawn : sunrise;
+  const dayEnd   = (INCLUDE_TWILIGHT_IN_DAY && dusk) ? dusk : sunset;
+  ctx.beginPath(); ctx.lineWidth=16; ctx.strokeStyle='rgba(255,198,24,0.85)';
+  arcCWWrap(ctx, R, ang(dayStart), ang(dayEnd)); ctx.stroke();
+
+  // Sun position dot
+  const nowAng = timeToAngle(new Date()) - Math.PI/2;
+  ctx.rotate(nowAng);
+  ctx.fillStyle='#ffcc33'; ctx.beginPath(); ctx.arc(0,-R,10,0,2*Math.PI); ctx.fill();
+
+  ctx.restore();
+
+  // Label
+  ctx.save(); ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+  ctx.fillStyle='#133b4b'; ctx.font='28px Georgia'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('DAYLIGHT',0,0); ctx.restore();
+}
+
+/* ── Analog clock (verified hands) ──────────────────────────────────────── */
+function drawClock(){
+  const ctx = clockCtx, R = ctx.canvas.width/2-60;
+  drawDialBase(ctx);
+  ctx.save(); ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+
+  // Hour ticks
+  ctx.strokeStyle='#006c7a'; ctx.lineWidth=8;
+  for(let i=0;i<12;i++){ ctx.save(); ctx.rotate(i*Math.PI/6); ctx.beginPath(); ctx.moveTo(0,-R); ctx.lineTo(0,-R+20); ctx.stroke(); ctx.restore(); }
+  // Minute ticks
+  ctx.lineWidth=4;
+  for(let i=0;i<60;i++){ if(i%5===0) continue; ctx.save(); ctx.rotate(i*Math.PI/30); ctx.beginPath(); ctx.moveTo(0,-R); ctx.lineTo(0,-R+10); ctx.stroke(); ctx.restore(); }
+
+  const now=new Date();
+  const sec = now.getSeconds();
+  const min = now.getMinutes() + sec/60;
+  const hr  = (now.getHours()%12) + min/60;
+
+  const secAng = (sec/60)*2*Math.PI - Math.PI/2;
+  const minAng = (min/60)*2*Math.PI - Math.PI/2;
+  const hrAng  = (hr /12)*2*Math.PI - Math.PI/2;
+
+  drawHand(ctx, hrAng , R-140, 8, '#002b45');
+  drawHand(ctx, minAng, R-100, 6, '#006c7a');
+  drawHand(ctx, secAng, R- 80, 2, '#ff3333');
+
+  ctx.beginPath(); ctx.fillStyle='#002b45'; ctx.arc(0,0,6,0,2*Math.PI); ctx.fill();
+  ctx.font='16px Georgia'; ctx.fillStyle='#133b4b'; ctx.textAlign='center';
+  ctx.fillText(now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}), 0, R-30);
+  ctx.restore();
+}
+
+/* ── Moon widget (phase + position) ─────────────────────────────────────── */
+function compassBearingFromAzimuth(az){
+  // SunCalc azimuth: radians from South, positive West.
+  // Convert to compass bearing (0=N, clockwise):
+  let deg = (az * 180/Math.PI) + 180; // now 0=S → 180=N
+  deg = (deg + 180) % 360; // rotate so 0=N
+  return deg; // 0..360
+}
+function moonPhaseName(phase){
+  if(phase === 0) return 'New Moon';
+  if(phase > 0 && phase < 0.25) return 'Waxing Crescent';
+  if(phase === 0.25) return 'First Quarter';
+  if(phase > 0.25 && phase < 0.5) return 'Waxing Gibbous';
+  if(phase === 0.5) return 'Full Moon';
+  if(phase > 0.5 && phase < 0.75) return 'Waning Gibbous';
+  if(phase === 0.75) return 'Last Quarter';
+  return 'Waning Crescent';
+}
+
+function drawMoon(){
+  const ctx = moonCtx, W = ctx.canvas.width, H = ctx.canvas.height;
+  const R = W/2 - 60;
+  drawDialBase(ctx);
+  ctx.save(); ctx.translate(W/2, H/2);
+
+  // Compass ring & cardinal marks
+  ctx.strokeStyle='#006c7a'; ctx.lineWidth=8;
+  for(let i=0;i<4;i++){ ctx.save(); ctx.rotate(i*Math.PI/2); ctx.beginPath(); ctx.moveTo(0,-R); ctx.lineTo(0,-R+20); ctx.stroke(); ctx.restore(); }
+  ctx.fillStyle='#133b4b'; ctx.font='18px Georgia'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('N',0,-R+35); ctx.fillText('E',R-35,0); ctx.fillText('S',0,R-35); ctx.fillText('W',-R+35,0);
+
+  if(!moonIllum || !moonPos){
+    ctx.fillStyle='#133b4b'; ctx.font='20px Georgia'; ctx.fillText('Loading Moon…',0,0);
+    ctx.restore(); return;
+  }
+
+  const bearing = compassBearingFromAzimuth(moonPos.azimuth); // 0..360 (0=N)
+  const angle = bearing * Math.PI/180 - Math.PI/2; // rotate to canvas coords
+  const alt = moonPos.altitude; // radians, 0=horizon, π/2=zenith
+
+  // Position dot: radius maps to altitude (rim=horizon, center=zenith)
+  let rDot = R * (1 - Math.max(-0.2, Math.min(alt, Math.PI/2)) / (Math.PI/2));
+  rDot = Math.max(0, Math.min(R, rDot));
+  const belowHorizon = alt < 0;
+
+  ctx.save();
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.fillStyle = belowHorizon ? 'rgba(200,200,200,0.35)' : '#e6e6e6';
+  ctx.arc(0,-rDot,10,0,2*Math.PI);
+  ctx.fill();
+  ctx.restore();
+
+  // Phase ring (simple): fraction around inner ring
+  const frac = Math.max(0, Math.min(1, moonIllum.fraction));
+  const innerR = R-28;
+  ctx.beginPath(); ctx.lineWidth=10; ctx.strokeStyle='rgba(200,200,200,0.35)';
+  ctx.arc(0,0,innerR,0,2*Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.lineWidth=10; ctx.strokeStyle='rgba(255,255,255,0.9)';
+  ctx.arc(0,0,innerR,-Math.PI/2,-Math.PI/2 + frac*2*Math.PI); ctx.stroke();
+
+  // Phase label + alt/az
+  const name = moonPhaseName(moonIllum.phase);
+  ctx.fillStyle='#133b4b'; ctx.font='20px Georgia';
+  ctx.fillText(`${name}`,0,20);
+  ctx.font='16px Georgia';
+  const altDeg = (alt*180/Math.PI).toFixed(1);
+  ctx.fillText(`Alt ${altDeg}°  Az ${Math.round(bearing)}°`,0,46);
+
+  ctx.restore();
+}
+
+/* ── Data updaters ─────────────────────────────────────────────────────── */
+async function updateTide(){
+  infoTbl.innerHTML = `<tr><td>Loading Tide Data <span class="loading-spinner"></span></td></tr>`;
+  const begin = new Date(Date.now() - 24*3600*1000);
+  const ymd = begin.toISOString().slice(0,10).replace(/-/g,'');
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd}&range=72&station=${STATION}&product=predictions&datum=MLLW&units=english&time_zone=lst_ldt&interval=hilo&format=json`;
+  try{
+    const response = await fetch(url);
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const now = new Date();
+
+    const preds = (data?.predictions||[]).map(p=>{
+      const [d,t]=p.t.split(' '); const [Y,M,D]=d.split('-'); const [hh,mm]=t.split(':');
+      return {time:new Date(Y, M-1, D, hh, mm), type:p.type};
+    }).sort((a,b)=>a.time-b.time);
+
+    lastTide = preds.filter(p=>p.time<=now).pop() || null;
+    nextTide = preds.find(p=>p.time>now) || null;
+
+    if(lastTide && nextTide){
+      const progress = (now - lastTide.time) / (nextTide.time - lastTide.time);
+      if(lastTide.type==='H' && nextTide.type==='L'){ tideAngle = progress * Math.PI; }
+      else if(lastTide.type==='L' && nextTide.type==='H'){
+        tideAngle = Math.PI + progress*Math.PI; if(tideAngle>=2*Math.PI) tideAngle-=2*Math.PI;
+      }
+    }else{
+      tideAngle = lastTide ? (lastTide.type==='H'?0:Math.PI) : 0;
+    }
+  }catch(e){
+    console.error(e);
+    infoTbl.innerHTML = `<tr><td style="color:red;">Error loading tide data.</td></tr>`;
+  }finally{ updateInfo(); }
+}
+
+function updateSun(){
+  const now = new Date();
+  const today    = SunCalc.getTimes(now, LAT, LON);
+  const tomorrow = SunCalc.getTimes(dateAddDays(now,1), LAT, LON);
+
+  sunrise = today.sunrise; sunset = today.sunset;
+  dawn = today.dawn; dusk = today.dusk;
+
+  nextSunrise = (now < sunrise) ? sunrise : tomorrow.sunrise;
+  nextSunset  = (now < sunset)  ? sunset  : tomorrow.sunset;
+  nextDawn    = (now < dawn)    ? dawn    : tomorrow.dawn;
+  nextDusk    = (now < dusk)    ? dusk    : tomorrow.dusk;
+
+  updateInfo();
+}
+
+function updateMoon(){
+  const now = new Date();
+  moonIllum = SunCalc.getMoonIllumination(now); // fraction, phase, angle
+  moonPos   = SunCalc.getMoonPosition(now, LAT, LON); // altitude, azimuth
+  moonTimesToday    = SunCalc.getMoonTimes(now, LAT, LON, true);
+  moonTimesTomorrow = SunCalc.getMoonTimes(dateAddDays(now,1), LAT, LON, true);
+
+  // Next moonrise/set relative to now
+  const mr = moonTimesToday.rise, ms = moonTimesToday.set;
+  const mr2 = moonTimesTomorrow.rise, ms2 = moonTimesTomorrow.set;
+  const n = now.getTime();
+  nextMoonrise = (mr && mr.getTime() > n) ? mr : mr2 || null;
+  nextMoonset  = (ms && ms.getTime() > n) ? ms : ms2 || null;
+
+  updateInfo();
+}
+
+function getCurrentTideStatus(){
+  if(!lastTide || !nextTide) return 'Unknown';
+  const now = new Date();
+  const timeSinceLast = (now - lastTide.time)/3.6e6;
+  const timeUntilNext = (nextTide.time - now)/3.6e6;
+  if(timeSinceLast < .5) return lastTide.type==='H'?'High':'Low';
+  if(timeUntilNext < .5) return nextTide.type==='H'?'High':'Low';
+  if(lastTide.type==='L' && nextTide.type==='H') return 'Rising';
+  if(lastTide.type==='H' && nextTide.type==='L') return 'Falling';
+  return 'Transitioning';
+}
+
+function updateInfo(){
+  if(!infoTbl) return;
+  infoTbl.innerHTML = '';
+  const row=(k,v)=>{const tr=document.createElement('tr');const a=document.createElement('td');a.textContent=k;const b=document.createElement('td');b.textContent=v;tr.append(a,b);infoTbl.appendChild(tr);};
+
+  // Tide
+  row('Current Tide Status', getCurrentTideStatus());
+  if(lastTide) row('Last ' + (lastTide.type==='H'?'High':'Low'), timeFmt(lastTide.time));
+  if(nextTide){ row('Next ' + (nextTide.type==='H'?'High':'Low'), timeFmt(nextTide.time)); row('Time to next Tide', timeRemaining(nextTide.time)); }
+  else{ row('Next Tide','Unknown'); row('Time to next Tide','N/A'); }
+
+  // Sun
+  row('Sunrise', timeFmt(sunrise)); if(nextSunrise) row('Time to next Sunrise', timeRemaining(nextSunrise));
+  row('Sunset',  timeFmt(sunset));  if(nextSunset)  row('Time to next Sunset',  timeRemaining(nextSunset));
+  if (dawn) row('Dawn (civil)', timeFmt(dawn));
+  if (dusk) row('Dusk (civil)', timeFmt(dusk));
+
+  // Moon
+  if(moonIllum && moonPos){
+    const bearing = Math.round(compassBearingFromAzimuth(moonPos.azimuth));
+    const altDeg = (moonPos.altitude*180/Math.PI).toFixed(1);
+    row('Moon Phase', `${moonPhaseName(moonIllum.phase)} (${Math.round(moonIllum.fraction*100)}%)`);
+    row('Moon Alt/Az', `${altDeg}° / ${bearing}°`);
+  }
+  if(nextMoonrise) row('Next Moonrise', timeFmt(nextMoonrise));
+  if(nextMoonset)  row('Next Moonset',  timeFmt(nextMoonset));
+}
+
+/* ── Animation ──────────────────────────────────────────────────────────── */
+function loop(){
+  drawTide(); drawSun(); drawClock(); drawMoon();
+  // refresh countdowns every frame for smooth timers
+  updateInfo();
+  requestAnimationFrame(loop);
+}
+
+/* ── Widget UX (drag, close, add-back) ──────────────────────────────────── */
+// Sandboxed previews and private/local-file contexts may deny storage.
+const sessionPreferences = new Map();
+const preferences = {
+  getItem(key){try{return localStorage.getItem(key) ?? sessionPreferences.get(key) ?? null}catch{return sessionPreferences.get(key) ?? null}},
+  setItem(key,value){sessionPreferences.set(key,value);try{localStorage.setItem(key,value)}catch{}}
+};
+function savedWidgetPosition(key){try{const p=JSON.parse(preferences.getItem(key));return p && typeof p.top==='string' && typeof p.left==='string' ? p : null}catch{return null}}
+const widgetStates = {}; // {id:{top,left,visible}}
+
+function makeDraggable(el){
+  let offsetX=0, offsetY=0, isDown=false;
+  const widgetId = el.id;
+  const savedPos = savedWidgetPosition(`widgetPos_${widgetId}`);
+  if(savedPos){ el.style.top=savedPos.top; el.style.left=savedPos.left; }
+  const savedVis = preferences.getItem(`widgetVisibility_${widgetId}`);
+  if(savedVis==='hidden'){ el.style.display='none'; widgetStates[widgetId]={top:el.style.top,left:el.style.left,visible:false}; }
+  else{ widgetStates[widgetId]={top:el.style.top,left:el.style.left,visible:true}; }
+
+  el.addEventListener('pointerdown', e=>{
+    isDown=true; offsetX=e.clientX-el.offsetLeft; offsetY=e.clientY-el.offsetTop;
+    el.setPointerCapture(e.pointerId); el.style.zIndex=10;
+  });
+  el.addEventListener('pointermove', e=>{
+    if(!isDown) return;
+    let L = e.clientX-offsetX, T = e.clientY-offsetY;
+    L=Math.max(0,Math.min(L, workspace.offsetWidth - el.offsetWidth));
+    T=Math.max(0,Math.min(T, workspace.offsetHeight- el.offsetHeight));
+    el.style.left=`${L}px`; el.style.top=`${T}px`;
+    widgetStates[widgetId].top=el.style.top; widgetStates[widgetId].left=el.style.left;
+    preferences.setItem(`widgetPos_${widgetId}`, JSON.stringify({top:el.style.top,left:el.style.left}));
+  });
+  el.addEventListener('pointerup', ()=>{ isDown=false; el.style.zIndex=1; });
+}
+function setupCloseButton(widgetEl, widgetId){
+  const btn = widgetEl.querySelector('.close-btn');
+  if(!btn) return;
+  btn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    widgetEl.style.display='none';
+    widgetStates[widgetId].visible=false;
+    preferences.setItem(`widgetVisibility_${widgetId}`,'hidden');
+    updateAddWidgetMenu();
+  });
+}
+function updateAddWidgetMenu(){
+  addWidgetMenu.innerHTML='';
+  const list = [
+    {id:'tideWidget',  name:'Tide Dial'},
+    {id:'sunWidget',   name:'Sun Dial'},
+    {id:'clockWidget', name:'Clock Dial'},
+    {id:'moonWidget',  name:'Moon Dial'},
+    {id:'infoWidget',  name:'Profile / Info'}
+  ];
+  list.forEach(w=>{
+    if(!widgetStates[w.id] || !widgetStates[w.id].visible){
+      const b=document.createElement('button'); b.textContent=`Add ${w.name}`;
+      b.onclick=()=>{
+        const el=document.getElementById(w.id);
+        el.style.display='block'; el.style.top='20px'; el.style.left='20px';
+        widgetStates[w.id]={top:'20px',left:'20px',visible:true};
+        preferences.setItem(`widgetVisibility_${w.id}`,'visible');
+        preferences.setItem(`widgetPos_${w.id}`, JSON.stringify({top:'20px',left:'20px'}));
+        addWidgetMenu.style.display='none'; updateAddWidgetMenu();
+      };
+      addWidgetMenu.appendChild(b);
+    }
+  });
+  if(addWidgetMenu.children.length===0){ addWidgetMenu.style.display='none'; }
+}
+
+/* ── Kickoff ────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', ()=>{
+  [tideWidget,sunWidget,clockWidget,infoWidget,moonWidget].forEach(w=>{ makeDraggable(w); setupCloseButton(w,w.id); });
+
+  addWidgetBtn.addEventListener('click', ()=>{
+    addWidgetMenu.style.display = (addWidgetMenu.style.display==='flex') ? 'none' : 'flex';
+    if(addWidgetMenu.style.display==='flex') updateAddWidgetMenu();
+  });
+  document.addEventListener('click', (e)=>{
+    if(!addWidgetMenu.contains(e.target) && e.target!==addWidgetBtn){ addWidgetMenu.style.display='none'; }
+  });
+
+  updateSun();
+  updateTide();
+  updateMoon();
+  setInterval(updateSun, 6*3600*1000);
+  setInterval(updateTide, 15*60*1000);
+  setInterval(updateMoon, 60*1000);
+
+  requestAnimationFrame(loop);
+  updateAddWidgetMenu();
+});
+</script>
+</body>
+</html>

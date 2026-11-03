@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cape Canaveral — Live Launch Countdown</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ---------- Theme ---------- */
+:root{
+  --digit:#00ffff;   /* glow text */
+  --frame:#00ffff;   /* frame outline */
+  --bg:#000000;      /* space backdrop */
+}
+html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);color:#fff;font-family:'Share Tech Mono',monospace;}
+canvas{display:block;}
+/* ---------- Widget panel ---------- */
+#widget{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;}
+#frame{
+  display:inline-block;
+  padding:1.6vw 3.2vw;
+  border:6px solid var(--frame);
+  border-radius:10px;
+  background:#00131a;
+  text-align:center;
+  /* breathing glow */
+  animation:breathe 8s ease-in-out infinite;
+}
+#timer{
+  font-size:8vw; line-height:1;
+  color:var(--digit);
+  text-shadow:0 0 25px rgba(0,255,255,.75);
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+#subtext{
+  margin-top:.6vw;
+  font-size:1.6vw;
+  color:#b8d8ff;
+  text-shadow:0 0 8px rgba(0,153,255,.6);
+  max-width:80vw;
+}
+/* mobile tweaks */
+@media(max-width:768px){
+  #frame{padding:3vw 5vw;}
+  #timer{font-size:clamp(12vw,14vw,20vh);} /* keep inside viewport */
+  #subtext{font-size:3.4vw;}
+}
+/* blinking colons */
+@keyframes blink{50%{opacity:0;}}
+.sep{animation:blink 1s steps(2,end) infinite;}
+/* breathing frame */
+@keyframes breathe{0%,100%{box-shadow:0 0 12px rgba(0,255,255,.4);}50%{box-shadow:0 0 35px rgba(0,255,255,.9);} }
+</style>
+</head>
+<body>
+  <div id="widget">
+    <div id="frame">
+      <div id="timer">Loading…</div>
+      <div id="subtext">Retrieving next Cape Canaveral / KSC launch…</div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
+<script>
+/****************** STARFIELD BACKGROUND ******************/
+try {
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x000000);
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);camera.position.z=8;
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.prepend(renderer.domElement);
+const starGeo=new THREE.BufferGeometry(),N=1500,arr=new Float32Array(N*3);
+for(let i=0;i<N;i++){arr[3*i]=(Math.random()-.5)*400;arr[3*i+1]=(Math.random()-.5)*400;arr[3*i+2]=(Math.random()-.5)*400;}
+starGeo.setAttribute('position',new THREE.BufferAttribute(arr,3));
+const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:.65}));
+const g=new THREE.Group();g.add(stars);scene.add(g);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+(function anim(){requestAnimationFrame(anim);g.rotation.y+=.0004;renderer.render(scene,camera);})();
+} catch (error) { console.warn("Starfield unavailable; countdown remains active.", error); }
+/****************** COUNTDOWN LOGIC ******************/
+const timerEl=document.getElementById('timer');
+const subEl  =document.getElementById('subtext');
+let launchDate=null;
+const pad=n=>String(n).padStart(2,'0');
+function setDigits(d,h,m,s){
+  timerEl.innerHTML=`${pad(d)}<span class="sep">:</span>${pad(h)}<span class="sep">:</span>${pad(m)}<span class="sep">:</span>${pad(s)}`;
+}
+function draw(){
+  if(!launchDate){timerEl.textContent='--:--:--:--';return;}
+  const now=new Date();
+  let diff=Math.max(0,launchDate-now); // stop at zero after liftoff
+  const d=Math.floor(diff/864e5);
+  const h=Math.floor(diff%864e5/36e5);
+  const m=Math.floor(diff%36e5/6e4);
+  const s=Math.floor(diff%6e4/1e3);
+  setDigits(d,h,m,s);
+}
+setInterval(draw,1000);
+/****************** FETCH LAUNCH (Launch Library 2) ******************/
+(async()=>{
+  const url='https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=50&ordering=window_start';
+  try{
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error(res.status);
+    const {results=[]}=await res.json();
+    if(!results.length) throw new Error('No upcoming launches in feed');
+    const LOC_RX=/Kennedy|Cape\s+Canaveral|CCSFS/i;
+    const capes=results.filter(l=>LOC_RX.test(l.pad.location.name));
+    if(!capes.length) throw new Error('No Cape launches');
+    const PAD_RX=/SLC[- ]?(40|41|37B)|LC[- ]?(39A|36A|46)/i;
+    const next=capes.find(l=>PAD_RX.test(l.pad.name))||capes[0];
+    launchDate=new Date(next.net||next.window_start);
+    const local=launchDate.toLocaleString('en-US',{timeZone:'America/New_York',dateStyle:'medium',timeStyle:'short'});
+    subEl.replaceChildren(document.createTextNode(next.name), document.createElement("br"), document.createTextNode(local + " ET"));
+    draw();
+  }catch(e){console.error(e);subEl.textContent='Launch schedule unavailable';}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animated SVG Mark Studio</title>
+<style>
+  :root{
+    --bg:#07131b;
+    --bg2:#0c2431;
+    --panel:rgba(9,16,23,.9);
+    --line:rgba(255,255,255,.10);
+    --line2:rgba(255,255,255,.06);
+    --text:#eafcff;
+    --muted:#9bc9d3;
+    --accent:#7ef0cf;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;
+    background:
+      radial-gradient(circle at 20% 12%, rgba(115,223,255,.08), transparent 24%),
+      radial-gradient(circle at 82% 18%, rgba(126,240,207,.08), transparent 22%),
+      linear-gradient(180deg,var(--bg2),var(--bg));
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  body{overflow:hidden}
+  .app{
+    display:grid;
+    grid-template-columns:320px 1fr;
+    height:100%;
+  }
+  .panel{
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    padding:14px;
+    overflow:auto;
+  }
+  .stageWrap{
+    position:relative;
+    min-width:0;
+  }
+  #stage{
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+    cursor:default;
+  }
+  .title{
+    font-size:18px;
+    font-weight:800;
+    margin-bottom:4px;
+  }
+  .subtitle{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.35;
+    margin-bottom:12px;
+  }
+  .section{
+    background:rgba(255,255,255,.02);
+    border:1px solid var(--line2);
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:12px;
+  }
+  .section h3{
+    margin:0 0 10px;
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:#c9faff;
+  }
+  .stack{display:grid;gap:8px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  label{
+    display:grid;
+    gap:5px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  input[type="text"], select{
+    width:100%;
+    border:1px solid var(--line);
+    background:#0d1b23;
+    color:var(--text);
+    border-radius:10px;
+    padding:9px 10px;
+    font:inherit;
+  }
+  input[type="range"]{width:100%}
+  input[type="color"]{
+    width:100%;height:38px;padding:0;border:none;background:transparent;
+  }
+  button{
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+    color:var(--text);
+    border-radius:10px;
+    padding:9px 10px;
+    font:inherit;
+    font-size:13px;
+    font-weight:650;
+    cursor:pointer;
+  }
+  button.active{
+    border-color:rgba(126,240,207,.5);
+    box-shadow:0 0 0 1px rgba(126,240,207,.10) inset;
+  }
+  button:hover{border-color:rgba(126,240,207,.35)}
+  button.danger{border-color:rgba(255,120,140,.22)}
+  .mini{
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.35;
+  }
+  #markList{min-height:120px}
+  .status{
+    font-size:12px;
+    color:#d9fcff;
+    background:rgba(126,240,207,.06);
+    border:1px solid rgba(126,240,207,.12);
+    border-radius:10px;
+    padding:8px 10px;
+  }
+  .hint{
+    position:absolute;
+    left:16px;bottom:16px;
+    background:rgba(8,14,18,.78);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:8px 12px;
+    font-size:12px;
+    color:var(--muted);
+    pointer-events:none;
+  }
+
+  .mark .main{transition:filter .12s ease}
+  .mark .hit{
+    stroke:transparent;
+    fill:none;
+    pointer-events:stroke;
+  }
+  .mark .select-box{
+    fill:none;
+    stroke:rgba(255,255,255,.35);
+    stroke-width:1;
+    stroke-dasharray:6 5;
+    opacity:0;
+    pointer-events:none;
+  }
+  .mark.selected .main{
+    filter:drop-shadow(0 0 6px rgba(126,240,207,.7));
+  }
+  .mark.selected .select-box{opacity:1}
+  .guide{
+    fill:none;
+    stroke:rgba(255,255,255,.18);
+    stroke-width:1.5;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-dasharray:5 5;
+    pointer-events:none;
+  }
+
+  @media (max-width: 900px){
+    body{overflow:auto}
+    .app{
+      grid-template-columns:1fr;
+      grid-template-rows:auto minmax(56vh,1fr);
+      height:auto;
+      min-height:100vh;
+    }
+    .panel{border-right:none;border-bottom:1px solid var(--line)}
+    .stageWrap{height:62vh;min-height:58vh}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <div class="title">Animated SVG Mark Studio</div>
+    <div class="subtitle">
+      Draw paths, place text, animate them, then export as a real animated SVG
+      with native SVG animation baked in.
+    </div>
+
+    <div class="section">
+      <h3>Mode</h3>
+      <div class="row3">
+        <button id="modeSelect" class="active">Select</button>
+        <button id="modePath">Path</button>
+        <button id="modeText">Text</button>
+      </div>
+      <div class="mini" style="margin-top:8px">
+        Select = choose mark. Path = drag to draw. Text = tap to place text.
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>New Mark</h3>
+      <div class="stack">
+        <label>
+          Text content
+          <input id="textInput" type="text" value="Reef" spellcheck="false">
+        </label>
+        <div class="row">
+          <label>
+            Font size
+            <input id="fontSize" type="range" min="12" max="120" step="1" value="42">
+          </label>
+          <label>
+            Path width
+            <input id="pathWidth" type="range" min="1" max="18" step="1" value="4">
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            Color
+            <input id="markColor" type="color" value="#7ef0cf">
+          </label>
+          <label>
+            Quick color
+            <select id="quickColor">
+              <option value="">Choose…</option>
+              <option value="#7ef0cf">Mint Reef</option>
+              <option value="#73dfff">Lagoon Blue</option>
+              <option value="#ff8ed1">Coral Pink</option>
+              <option value="#ffd57a">Tide Gold</option>
+              <option value="#8d7cff">Violet Current</option>
+              <option value="#ffffff">White</option>
+            </select>
+          </label>
+        </div>
+        <button id="restyleSelected">Restyle Selected</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Animation</h3>
+      <div class="stack">
+        <label>
+          Preset
+          <select id="animType">
+            <option value="none">None</option>
+            <option value="drift">Drift</option>
+            <option value="wave">Wave</option>
+            <option value="orbit">Orbit</option>
+            <option value="spin">Spin</option>
+            <option value="pulse">Pulse</option>
+            <option value="jitter">Jitter</option>
+            <option value="reef">Reef</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>
+            Speed
+            <input id="animSpeed" type="range" min="0.2" max="3" step="0.01" value="1">
+          </label>
+          <label>
+            Amplitude
+            <input id="animAmp" type="range" min="0" max="80" step="1" value="24">
+          </label>
+        </div>
+        <div class="row">
+          <button id="applySelected">Apply to Selected</button>
+          <button id="applyAll">Apply to All</button>
+        </div>
+        <div class="row">
+          <button id="pauseBtn">Pause</button>
+          <button id="randomizeBtn">Randomize</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Marks</h3>
+      <div class="stack">
+        <select id="markList" size="7"></select>
+        <div class="status" id="selectionInfo">No mark selected.</div>
+        <div class="row">
+          <button id="deleteSelected" class="danger">Delete Selected</button>
+          <button id="clearSelection">Clear Selection</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Export</h3>
+      <div class="row">
+        <button id="exportAnimated">Export Animated SVG</button>
+        <button id="exportStatic">Export Static SVG</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="clearAll" class="danger">Clear All</button>
+        <button id="seedDemo">Seed Demo</button>
+      </div>
+      <div class="mini" style="margin-top:8px">
+        Animated export uses native SVG animation (SMIL), so the file can be embedded into HTML and still animate.
+      </div>
+    </div>
+  </aside>
+
+  <main class="stageWrap">
+    <svg id="stage" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="100%" height="100%" fill="transparent"></rect>
+      <g id="markLayer"></g>
+      <g id="previewLayer"></g>
+    </svg>
+    <div class="hint" id="hint">Select mode: tap a mark to select it.</div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+
+  const stage = document.getElementById("stage");
+  const markLayer = document.getElementById("markLayer");
+  const previewLayer = document.getElementById("previewLayer");
+  const hint = document.getElementById("hint");
+
+  const textInput = document.getElementById("textInput");
+  const fontSize = document.getElementById("fontSize");
+  const pathWidth = document.getElementById("pathWidth");
+  const markColor = document.getElementById("markColor");
+  const quickColor = document.getElementById("quickColor");
+
+  const animType = document.getElementById("animType");
+  const animSpeed = document.getElementById("animSpeed");
+  const animAmp = document.getElementById("animAmp");
+
+  const markList = document.getElementById("markList");
+  const selectionInfo = document.getElementById("selectionInfo");
+
+  const modeButtons = {
+    select: document.getElementById("modeSelect"),
+    path: document.getElementById("modePath"),
+    text: document.getElementById("modeText")
+  };
+
+  const previewPath = document.createElementNS(NS, "path");
+  previewPath.setAttribute("class", "guide");
+  previewLayer.appendChild(previewPath);
+
+  let mode = "select";
+  let paused = false;
+  let drawing = false;
+  let currentPoints = [];
+  let marks = [];
+  let selectedId = null;
+  let uid = 0;
+
+  function syncViewBox() {
+    const r = stage.getBoundingClientRect();
+    stage.setAttribute("viewBox", `0 0 ${Math.max(1, r.width)} ${Math.max(1, r.height)}`);
+  }
+
+  function setHint(txt){ hint.textContent = txt; }
+
+  function pointFromEvent(e) {
+    const r = stage.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function makeId() {
+    uid += 1;
+    return "m" + uid;
+  }
+
+  function escapeXml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function pathFromPoints(points) {
+    if (!points.length) return "";
+    let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i].x.toFixed(2)} ${points[i].y.toFixed(2)}`;
+    }
+    return d;
+  }
+
+  function centerOfPoints(points) {
+    let x = 0, y = 0;
+    for (const p of points) { x += p.x; y += p.y; }
+    return { x: x / points.length, y: y / points.length };
+  }
+
+  function defaultAnim() {
+    return {
+      type: "none",
+      speed: 1,
+      amp: 24,
+      phase: Math.random() * Math.PI * 2
+    };
+  }
+
+  function setMode(next) {
+    mode = next;
+    for (const [k, btn] of Object.entries(modeButtons)) {
+      btn.classList.toggle("active", k === next);
+    }
+    stage.style.cursor = next === "path" ? "crosshair" : (next === "text" ? "cell" : "default");
+    if (next === "select") setHint("Select mode: tap a mark to select it.");
+    if (next === "path") setHint("Path mode: drag to draw a path.");
+    if (next === "text") setHint("Text mode: tap the stage to place text.");
+  }
+
+  function refreshList() {
+    markList.innerHTML = "";
+    for (const mark of marks) {
+      const opt = document.createElement("option");
+      opt.value = mark.id;
+      opt.textContent = `${mark.type === "text" ? "Text" : "Path"} — ${mark.label}`;
+      markList.appendChild(opt);
+    }
+    if (selectedId) markList.value = selectedId;
+  }
+
+  function updateSelectionUI() {
+    for (const mark of marks) {
+      mark.g.classList.toggle("selected", mark.id === selectedId);
+    }
+    if (!selectedId) {
+      selectionInfo.textContent = "No mark selected.";
+      markList.value = "";
+      return;
+    }
+    const mark = marks.find(m => m.id === selectedId);
+    if (!mark) {
+      selectionInfo.textContent = "No mark selected.";
+      return;
+    }
+    selectionInfo.textContent =
+      `${mark.type === "text" ? "Text" : "Path"} selected · animation: ${mark.anim.type} · speed ${mark.anim.speed.toFixed(2)} · amplitude ${mark.anim.amp.toFixed(0)}`;
+    markList.value = mark.id;
+  }
+
+  function selectMark(id) {
+    selectedId = id;
+    updateSelectionUI();
+  }
+
+  function createSelectionRect(g, bbox) {
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("class", "select-box");
+    rect.setAttribute("x", (bbox.x - 8).toFixed(2));
+    rect.setAttribute("y", (bbox.y - 8).toFixed(2));
+    rect.setAttribute("width", (bbox.width + 16).toFixed(2));
+    rect.setAttribute("height", (bbox.height + 16).toFixed(2));
+    rect.setAttribute("rx", "10");
+    g.insertBefore(rect, g.firstChild);
+    return rect;
+  }
+
+  function addTextMark(x, y) {
+    const txt = (textInput.value || "Reef").trim() || "Reef";
+    const color = markColor.value;
+    const size = parseFloat(fontSize.value);
+
+    const id = makeId();
+
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "mark");
+    g.dataset.id = id;
+
+    const text = document.createElementNS(NS, "text");
+    text.setAttribute("class", "main");
+    text.setAttribute("x", x.toFixed(2));
+    text.setAttribute("y", y.toFixed(2));
+    text.setAttribute("fill", color);
+    text.setAttribute("font-size", size.toFixed(2));
+    text.setAttribute("font-weight", "700");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "middle");
+    text.textContent = txt;
+    g.appendChild(text);
+
+    markLayer.appendChild(g);
+
+    const bbox = text.getBBox();
+    createSelectionRect(g, bbox);
+
+    const hit = document.createElementNS(NS, "rect");
+    hit.setAttribute("class", "hit");
+    hit.setAttribute("x", (bbox.x - 12).toFixed(2));
+    hit.setAttribute("y", (bbox.y - 12).toFixed(2));
+    hit.setAttribute("width", (bbox.width + 24).toFixed(2));
+    hit.setAttribute("height", (bbox.height + 24).toFixed(2));
+    g.appendChild(hit);
+
+    const mark = {
+      id,
+      type: "text",
+      label: `"${txt}"`,
+      g,
+      main: text,
+      hit,
+      text: txt,
+      x, y,
+      cx: x,
+      cy: y,
+      color,
+      baseSize: size,
+      anim: defaultAnim()
+    };
+
+    marks.push(mark);
+    refreshList();
+    selectMark(id);
+  }
+
+  function addPathMark(points) {
+    if (points.length < 2) return;
+    const color = markColor.value;
+    const width = parseFloat(pathWidth.value);
+    const d = pathFromPoints(points);
+    const center = centerOfPoints(points);
+    const id = makeId();
+
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "mark");
+    g.dataset.id = id;
+
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("class", "main");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", color);
+    path.setAttribute("stroke-width", width.toFixed(2));
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    g.appendChild(path);
+
+    markLayer.appendChild(g);
+
+    const bbox = path.getBBox();
+    createSelectionRect(g, bbox);
+
+    const hit = document.createElementNS(NS, "path");
+    hit.setAttribute("class", "hit");
+    hit.setAttribute("d", d);
+    hit.setAttribute("stroke-width", Math.max(14, width * 4).toFixed(2));
+    hit.setAttribute("stroke-linecap", "round");
+    hit.setAttribute("stroke-linejoin", "round");
+    g.appendChild(hit);
+
+    const mark = {
+      id,
+      type: "path",
+      label: `Path ${id.replace("m","")}`,
+      g,
+      main: path,
+      hit,
+      d,
+      cx: center.x,
+      cy: center.y,
+      color,
+      baseWidth: width,
+      anim: defaultAnim()
+    };
+
+    marks.push(mark);
+    refreshList();
+    selectMark(id);
+  }
+
+  function refreshPreview() {
+    if (!drawing || currentPoints.length < 2) {
+      previewPath.setAttribute("d", "");
+      return;
+    }
+    previewPath.setAttribute("d", pathFromPoints(currentPoints));
+  }
+
+  function restyleSelected() {
+    if (!selectedId) return;
+    const mark = marks.find(m => m.id === selectedId);
+    if (!mark) return;
+    mark.color = markColor.value;
+
+    if (mark.type === "text") {
+      mark.baseSize = parseFloat(fontSize.value);
+      mark.main.setAttribute("fill", mark.color);
+      mark.main.setAttribute("font-size", mark.baseSize.toFixed(2));
+      mark.text = textInput.value || mark.text;
+      mark.main.textContent = mark.text;
+      mark.label = `"${mark.text}"`;
+    } else {
+      mark.baseWidth = parseFloat(pathWidth.value);
+      mark.main.setAttribute("stroke", mark.color);
+      mark.main.setAttribute("stroke-width", mark.baseWidth.toFixed(2));
+    }
+
+    refreshList();
+    updateSelectionUI();
+  }
+
+  function applyAnim(mark) {
+    mark.anim.type = animType.value;
+    mark.anim.speed = parseFloat(animSpeed.value);
+    mark.anim.amp = parseFloat(animAmp.value);
+  }
+
+  function applySelected() {
+    if (!selectedId) return;
+    const mark = marks.find(m => m.id === selectedId);
+    if (!mark) return;
+    applyAnim(mark);
+    updateSelectionUI();
+  }
+
+  function applyAll() {
+    for (const mark of marks) applyAnim(mark);
+    updateSelectionUI();
+  }
+
+  function randomizeMotion() {
+    const presets = ["drift","wave","orbit","spin","pulse","jitter","reef"];
+    for (const mark of marks) {
+      mark.anim.type = presets[Math.floor(Math.random() * presets.length)];
+      mark.anim.speed = 0.35 + Math.random() * 2.2;
+      mark.anim.amp = 8 + Math.random() * 44;
+      mark.anim.phase = Math.random() * Math.PI * 2;
+    }
+    updateSelectionUI();
+  }
+
+  function deleteSelected() {
+    if (!selectedId) return;
+    const i = marks.findIndex(m => m.id === selectedId);
+    if (i === -1) return;
+    marks[i].g.remove();
+    marks.splice(i, 1);
+    selectedId = null;
+    refreshList();
+    updateSelectionUI();
+  }
+
+  function clearAll() {
+    for (const mark of marks) mark.g.remove();
+    marks = [];
+    selectedId = null;
+    refreshList();
+    updateSelectionUI();
+  }
+
+  function motionTransform(type, amp) {
+    const a = amp.toFixed(2);
+    switch (type) {
+      case "drift":
+        return `<animateTransform attributeName="transform" type="translate" dur="DUR" repeatCount="indefinite" values="0 0; ${a} ${(-amp*0.55).toFixed(2)}; ${(-amp*0.8).toFixed(2)} ${(amp*0.6).toFixed(2)}; 0 0" />`;
+      case "wave":
+        return `<animateTransform attributeName="transform" type="translate" dur="DUR" repeatCount="indefinite" values="0 0; 0 ${(-amp).toFixed(2)}; 0 ${amp.toFixed(2)}; 0 0" />`;
+      case "orbit":
+        return `<animateTransform attributeName="transform" type="translate" dur="DUR" repeatCount="indefinite" values="${a} 0; 0 ${a}; ${(-amp).toFixed(2)} 0; 0 ${(-amp).toFixed(2)}; ${a} 0" />`;
+      case "spin":
+        return `__SPIN__`;
+      case "jitter": {
+        const s = (amp * 0.35).toFixed(2);
+        return `<animateTransform attributeName="transform" type="translate" dur="DUR" repeatCount="indefinite" values="0 0; ${s} ${(-s)}; ${(-s)} ${(s*0.5).toFixed(2)}; ${(s*0.6).toFixed(2)} ${s}; ${(-s*0.4).toFixed(2)} ${(-s*0.8).toFixed(2)}; 0 0" />`;
+      }
+      case "reef":
+        return `__REEF__`;
+      default:
+        return "";
+    }
+  }
+
+  function buildAnimatedSVGString() {
+    syncViewBox();
+    const vb = stage.getAttribute("viewBox").split(/\s+/).map(Number);
+    const W = vb[2] || 1200;
+    const H = vb[3] || 800;
+
+    let out = '';
+    out += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+    out += `<rect x="0" y="0" width="${W}" height="${H}" fill="#07131b"/>`;
+
+    for (const mark of marks) {
+      const speed = Math.max(0.2, mark.anim.speed || 1);
+      const dur = (6 / speed).toFixed(2) + 's';
+      const amp = Math.max(0, mark.anim.amp || 0);
+
+      let content = '';
+      let groupOpen = `<g id="${escapeXml(mark.id)}">`;
+      let groupClose = `</g>`;
+
+      if (mark.type === "text") {
+        let extra = "";
+        if (mark.anim.type === "pulse") {
+          const s1 = mark.baseSize.toFixed(2);
+          const s2 = (mark.baseSize * (1 + amp / 100)).toFixed(2);
+          extra += `<animate attributeName="font-size" dur="${dur}" repeatCount="indefinite" values="${s1};${s2};${s1}" />`;
+          extra += `<animate attributeName="opacity" dur="${dur}" repeatCount="indefinite" values="1;0.55;1" />`;
+        } else if (mark.anim.type === "reef") {
+          const s1 = mark.baseSize.toFixed(2);
+          const s2 = (mark.baseSize * (1 + amp / 180)).toFixed(2);
+          extra += `<animate attributeName="font-size" dur="${dur}" repeatCount="indefinite" values="${s1};${s2};${s1}" />`;
+          extra += `<animate attributeName="opacity" dur="${dur}" repeatCount="indefinite" values="1;0.65;1" />`;
+        }
+        content =
+          `<text x="${mark.x.toFixed(2)}" y="${mark.y.toFixed(2)}" fill="${escapeXml(mark.color)}" font-size="${mark.baseSize.toFixed(2)}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${escapeXml(mark.text)}${extra}</text>`;
+      } else {
+        let extra = "";
+        if (mark.anim.type === "pulse") {
+          const w1 = mark.baseWidth.toFixed(2);
+          const w2 = (mark.baseWidth * (1 + amp / 70)).toFixed(2);
+          extra += `<animate attributeName="stroke-width" dur="${dur}" repeatCount="indefinite" values="${w1};${w2};${w1}" />`;
+          extra += `<animate attributeName="opacity" dur="${dur}" repeatCount="indefinite" values="1;0.55;1" />`;
+        } else if (mark.anim.type === "reef") {
+          const w1 = mark.baseWidth.toFixed(2);
+          const w2 = (mark.baseWidth * (1 + amp / 120)).toFixed(2);
+          extra += `<animate attributeName="stroke-width" dur="${dur}" repeatCount="indefinite" values="${w1};${w2};${w1}" />`;
+          extra += `<animate attributeName="opacity" dur="${dur}" repeatCount="indefinite" values="1;0.65;1" />`;
+        }
+        content =
+          `<path d="${escapeXml(mark.d)}" fill="none" stroke="${escapeXml(mark.color)}" stroke-width="${mark.baseWidth.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${extra}</path>`;
+      }
+
+      let motion = "";
+
+      if (mark.anim.type === "spin") {
+        motion = `<animateTransform attributeName="transform" type="rotate" dur="${dur}" repeatCount="indefinite" from="0 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}" to="360 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}" />`;
+      } else if (mark.anim.type === "reef") {
+        motion += `<animateTransform attributeName="transform" type="translate" additive="sum" dur="${dur}" repeatCount="indefinite" values="0 0; ${(amp*0.45).toFixed(2)} ${(amp*0.25).toFixed(2)}; ${(-amp*0.35).toFixed(2)} ${(amp*0.6).toFixed(2)}; 0 0" />`;
+        motion += `<animateTransform attributeName="transform" type="rotate" additive="sum" dur="${dur}" repeatCount="indefinite" values="0 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}; ${(amp*0.5).toFixed(2)} ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}; ${(-amp*0.4).toFixed(2)} ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}; 0 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}" />`;
+      } else if (mark.anim.type !== "pulse" && mark.anim.type !== "none") {
+        motion = motionTransform(mark.anim.type, amp).replaceAll('DUR', dur);
+        if (motion === '__SPIN__') {
+          motion = `<animateTransform attributeName="transform" type="rotate" dur="${dur}" repeatCount="indefinite" from="0 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}" to="360 ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)}" />`;
+        }
+      }
+
+      out += groupOpen + content + motion + groupClose;
+    }
+
+    out += `</svg>`;
+    return out;
+  }
+
+  function buildStaticSVGString() {
+    syncViewBox();
+    const vb = stage.getAttribute("viewBox").split(/\s+/).map(Number);
+    const W = vb[2] || 1200;
+    const H = vb[3] || 800;
+
+    let out = '';
+    out += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+    out += `<rect x="0" y="0" width="${W}" height="${H}" fill="#07131b"/>`;
+
+    for (const mark of marks) {
+      if (mark.type === "text") {
+        out += `<text x="${mark.x.toFixed(2)}" y="${mark.y.toFixed(2)}" fill="${escapeXml(mark.color)}" font-size="${mark.baseSize.toFixed(2)}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${escapeXml(mark.text)}</text>`;
+      } else {
+        out += `<path d="${escapeXml(mark.d)}" fill="none" stroke="${escapeXml(mark.color)}" stroke-width="${mark.baseWidth.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      }
+    }
+
+    out += `</svg>`;
+    return out;
+  }
+
+  function downloadTextFile(text, filename, mime) {
+    const blob = new Blob([text], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function exportAnimated() {
+    const text = buildAnimatedSVGString();
+    downloadTextFile(text, "animated-mark-scene.svg", "image/svg+xml;charset=utf-8");
+  }
+
+  function exportStatic() {
+    const text = buildStaticSVGString();
+    downloadTextFile(text, "static-mark-scene.svg", "image/svg+xml;charset=utf-8");
+  }
+
+  function animateMarkLive(mark, time) {
+    const a = mark.anim || defaultAnim();
+    const tt = time * Math.max(0.2, a.speed) + (a.phase || 0);
+    const amp = a.amp || 0;
+    let tx = 0, ty = 0, rot = 0, alpha = 1;
+    let sizeMul = 1, widthMul = 1;
+
+    switch (a.type) {
+      case "drift":
+        tx = Math.cos(tt) * amp;
+        ty = Math.sin(tt * 1.18) * amp * 0.55;
+        break;
+      case "wave":
+        ty = Math.sin(tt * 1.7) * amp;
+        break;
+      case "orbit":
+        tx = Math.cos(tt) * amp;
+        ty = Math.sin(tt) * amp;
+        break;
+      case "spin":
+        rot = tt * 60;
+        break;
+      case "pulse":
+        sizeMul = 1 + Math.sin(tt * 2.2) * (amp / 100);
+        widthMul = 1 + Math.sin(tt * 2.2) * (amp / 70);
+        alpha = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(tt * 2.2));
+        break;
+      case "jitter":
+        tx = Math.sin(tt * 8.5 + mark.cx * 0.03) * amp * 0.35 + Math.cos(tt * 11.5 + mark.cy * 0.02) * amp * 0.18;
+        ty = Math.cos(tt * 9.2 + mark.cy * 0.03) * amp * 0.35 + Math.sin(tt * 6.6 + mark.cx * 0.02) * amp * 0.18;
+        break;
+      case "reef":
+        tx = Math.cos(tt * 0.9) * amp * 0.45;
+        ty = Math.sin(tt * 1.25 + mark.cx * 0.01) * amp * 0.65;
+        rot = Math.sin(tt * 1.1) * amp * 0.5;
+        sizeMul = 1 + Math.sin(tt * 2.0) * (amp / 180);
+        widthMul = 1 + Math.sin(tt * 2.0) * (amp / 120);
+        alpha = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(tt * 2.0));
+        break;
+      case "none":
+      default:
+        break;
+    }
+
+    mark.g.setAttribute(
+      "transform",
+      `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) rotate(${rot.toFixed(2)} ${mark.cx.toFixed(2)} ${mark.cy.toFixed(2)})`
+    );
+
+    mark.main.style.opacity = String(alpha);
+
+    if (mark.type === "text") {
+      mark.main.setAttribute("font-size", (mark.baseSize * sizeMul).toFixed(2));
+    } else {
+      mark.main.setAttribute("stroke-width", Math.max(0.4, mark.baseWidth * widthMul).toFixed(2));
+    }
+  }
+
+  function seedDemo() {
+    clearAll();
+    textInput.value = "Reef";
+    addTextMark(210, 140);
+    marks[marks.length - 1].anim = { type:"pulse", speed:1.0, amp:18, phase:0 };
+
+    textInput.value = "Orbit";
+    addTextMark(430, 250);
+    marks[marks.length - 1].color = "#73dfff";
+    marks[marks.length - 1].main.setAttribute("fill", "#73dfff");
+    marks[marks.length - 1].anim = { type:"wave", speed:0.8, amp:22, phase:0.6 };
+
+    const pts = [
+      {x:560,y:140},{x:620,y:180},{x:650,y:240},{x:610,y:310},
+      {x:550,y:330},{x:500,y:300},{x:470,y:235}
+    ];
+    markColor.value = "#ff8ed1";
+    addPathMark(pts);
+    marks[marks.length - 1].anim = { type:"reef", speed:0.9, amp:18, phase:1.2 };
+
+    refreshList();
+    selectMark(marks[0]?.id || null);
+    setMode("select");
+  }
+
+  // Event wiring
+  stage.addEventListener("pointerdown", (e) => {
+    const targetMark = e.target.closest(".mark");
+
+    if (mode === "select") {
+      if (targetMark) selectMark(targetMark.dataset.id);
+      else selectMark(null);
+      return;
+    }
+
+    if (mode === "text") {
+      const p = pointFromEvent(e);
+      addTextMark(p.x, p.y);
+      return;
+    }
+
+    if (mode === "path") {
+      drawing = true;
+      currentPoints = [pointFromEvent(e)];
+      try { stage.setPointerCapture(e.pointerId); } catch {}
+      refreshPreview();
+    }
+  });
+
+  stage.addEventListener("pointermove", (e) => {
+    if (!drawing || mode !== "path") return;
+    const p = pointFromEvent(e);
+    const last = currentPoints[currentPoints.length - 1];
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 2) {
+      currentPoints.push(p);
+      refreshPreview();
+    }
+  });
+
+  function finishPath() {
+    if (!drawing) return;
+    drawing = false;
+    previewPath.setAttribute("d", "");
+    if (currentPoints.length >= 2) addPathMark(currentPoints);
+    currentPoints = [];
+  }
+
+  stage.addEventListener("pointerup", finishPath);
+  stage.addEventListener("pointercancel", finishPath);
+  stage.addEventListener("mouseleave", () => {
+    if (mode === "path" && drawing) finishPath();
+  });
+
+  modeButtons.select.addEventListener("click", () => setMode("select"));
+  modeButtons.path.addEventListener("click", () => setMode("path"));
+  modeButtons.text.addEventListener("click", () => setMode("text"));
+
+  quickColor.addEventListener("change", () => {
+    if (quickColor.value) markColor.value = quickColor.value;
+  });
+
+  markList.addEventListener("change", () => selectMark(markList.value || null));
+
+  document.getElementById("restyleSelected").addEventListener("click", restyleSelected);
+  document.getElementById("applySelected").addEventListener("click", applySelected);
+  document.getElementById("applyAll").addEventListener("click", applyAll);
+  document.getElementById("pauseBtn").addEventListener("click", (e) => {
+    paused = !paused;
+    e.currentTarget.textContent = paused ? "Resume" : "Pause";
+  });
+  document.getElementById("randomizeBtn").addEventListener("click", randomizeMotion);
+  document.getElementById("deleteSelected").addEventListener("click", deleteSelected);
+  document.getElementById("clearSelection").addEventListener("click", () => selectMark(null));
+  document.getElementById("clearAll").addEventListener("click", clearAll);
+  document.getElementById("exportAnimated").addEventListener("click", exportAnimated);
+  document.getElementById("exportStatic").addEventListener("click", exportStatic);
+  document.getElementById("seedDemo").addEventListener("click", seedDemo);
+
+  window.addEventListener("resize", syncViewBox);
+
+  function frame(ts) {
+    const time = ts * 0.001;
+    if (!paused) {
+      for (const mark of marks) animateMarkLive(mark, time);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  syncViewBox();
+  seedDemo();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

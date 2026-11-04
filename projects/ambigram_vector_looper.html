@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ambigram Vector Looper</title>
+<style>
+:root{--bg:#111;--panel:#1b1b1b;--ink:#f5f5f2;--muted:#aaa;--line:#383838;--accent:#ddd}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,sans-serif}
+header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+h1{font-size:18px;margin:0;letter-spacing:.08em;text-transform:uppercase} header span{color:var(--muted)}
+main{display:grid;grid-template-columns:1fr 320px;min-height:calc(100vh - 62px)}
+.stage{padding:22px}.side{border-left:1px solid var(--line);padding:18px;background:var(--panel)}
+.card{background:#fff;margin-bottom:18px;border-radius:4px;overflow:hidden}.label{background:#222;color:#ddd;padding:7px 10px;font-size:12px;letter-spacing:.08em}
+svg{display:block;width:100%;height:auto;background:white}.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button,input,select{background:#292929;color:#eee;border:1px solid #444;border-radius:3px;padding:8px}
+button{cursor:pointer}button:hover{background:#363636}.primary{background:#eee;color:#111;border-color:#eee}
+small,p{color:#aaa;line-height:1.45}.pair{padding:10px 0;border-top:1px solid #333}
+.pair strong{display:inline-block;width:55px}.score{font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;padding:0}.good{color:#b8e6b8}
+@media(max-width:800px){main{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}}
+</style></head>
+<body>
+<header><h1>Ambigram Vector Looper</h1><span>LOVE ⇄ HATE · exact 180° constraint</span></header>
+<main><section class="stage">
+<div class="card"><div class="label">UPRIGHT — target: LOVE</div><svg id="up" viewBox="0 0 1000 260"></svg></div>
+<div class="card"><div class="label">SAME PATHS ROTATED 180° — target: HATE</div><svg id="down" viewBox="0 0 1000 260"></svg></div>
+<div class="card"><div class="label">PAIR INSPECTOR</div><svg id="pairs" viewBox="0 0 1000 260"></svg></div>
+</section>
+<aside class="side">
+<div class="row"><button class="primary" id="mutate">Mutate 100×</button><button id="reset">Reset</button></div>
+<div class="row"><button id="undo">Undo</button><button id="export">Export SVG</button></div>
+<p>This is a deterministic vector loop. Every candidate is rendered from one set of paths; the lower view is a literal 180° transform, never regenerated.</p>
+<label>Mutation size <span id="mval">12</span></label><input id="mag" type="range" min="1" max="35" value="12">
+<label>Iterations/run <span id="ival">100</span></label><input id="iters" type="range" min="10" max="1000" step="10" value="100">
+<div id="scores"></div>
+<p><b>Scoring:</b> the built-in heuristic rewards structural features for each target glyph at both orientations. Click a pair in the inspector to manually nudge its control points. For a production solver, replace <code>scoreGlyph()</code> with OCR/vision probabilities.</p>
+<small>Tip: repeated mutation runs hill-climb the same geometry. Export at any point and inspect the SVG in Inkscape.</small>
+</aside></main>
+<script>
+const NS="http://www.w3.org/2000/svg";
+const targets=[["L","E"],["O","T"],["V","A"],["E","H"]];
+let hist=[];
+/* Each glyph is a polyline skeleton. Rotation maps the SAME points into its partner.
+   Stroke-based construction makes the optimization legible and easy to edit. */
+let glyphs=[
+ [[35,25],[35,210],[155,210],[155,180],[75,180],[75,25]],
+ [[25,35],[95,20],[155,55],[160,130],[120,205],[45,220],[20,160],[20,70],[60,35],[130,40]],
+ [[25,30],[90,220],[155,30],[125,30],[90,160],[55,30]],
+ [[25,30],[25,220],[150,220],[150,185],[65,185],[65,140],[130,140],[130,105],[65,105],[65,65],[150,65],[150,30]]
+];
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function rotPts(pts){return pts.slice().reverse().map(([x,y])=>[180-x,240-y])}
+function path(pts){return "M"+pts.map(p=>p.join(",")).join(" L")}
+function drawWord(svg, rotated=false){
+ svg.innerHTML=""; const g=document.createElementNS(NS,"g");
+ if(rotated) g.setAttribute("transform","translate(1000 260) rotate(180)");
+ glyphs.forEach((pts,i)=>{let p=document.createElementNS(NS,"path");p.setAttribute("d",path(pts));p.setAttribute("fill","none");p.setAttribute("stroke","#111");p.setAttribute("stroke-width","25");p.setAttribute("stroke-linecap","square");p.setAttribute("stroke-linejoin","miter");p.setAttribute("transform",`translate(${80+i*220} 10)`);g.appendChild(p)});
+ svg.appendChild(g)
+}
+function features(pts){
+ let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+ let seg=[];for(let i=1;i<pts.length;i++){let dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];seg.push([dx,dy])}
+ return {w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),
+ horiz:seg.filter(s=>Math.abs(s[0])>Math.abs(s[1])*1.8).length,
+ vert:seg.filter(s=>Math.abs(s[1])>Math.abs(s[0])*1.8).length,
+ diag:seg.filter(s=>Math.abs(s[0])>.4*Math.abs(s[1])&&Math.abs(s[1])>.4*Math.abs(s[0])).length,
+ n:pts.length, top:xs[ys.indexOf(Math.min(...ys))], bottom:xs[ys.indexOf(Math.max(...ys))]};
+}
+function scoreGlyph(pts,ch){
+ let f=features(pts),s=0;
+ const want={
+ L:[1,1,0],E:[3,1,0],O:[0,2,1],T:[1,1,0],
+ V:[0,0,2],A:[1,0,2],H:[1,2,0]
+ }[ch]||[1,1,1];
+ s-=Math.abs(f.horiz-want[0])*8+Math.abs(f.vert-want[1])*7+Math.abs(f.diag-want[2])*6;
+ s-=Math.abs(f.w-130)*.05+Math.abs(f.h-190)*.04;
+ if(ch==="O") s-=Math.abs(f.n-10)*2;
+ if(ch==="A"&&f.horiz>0)s+=8;
+ if(ch==="H"&&f.horiz>0&&f.vert>=2)s+=15;
+ return s;
+}
+function pairScore(i,pts=glyphs[i]){return scoreGlyph(pts,targets[i][0])+scoreGlyph(rotPts(pts),targets[i][1])}
+function total(){return glyphs.reduce((a,_,i)=>a+pairScore(i),0)}
+function render(){
+ drawWord(document.querySelector("#up"));drawWord(document.querySelector("#down"),true);
+ const s=document.querySelector("#pairs");s.innerHTML="";
+ glyphs.forEach((pts,i)=>{
+  let x=45+i*245, p=document.createElementNS(NS,"path");p.setAttribute("d",path(pts));p.setAttribute("fill","none");p.setAttribute("stroke","#111");p.setAttribute("stroke-width","15");p.setAttribute("transform",`translate(${x} 10) scale(.75)`);s.appendChild(p);
+  let t=document.createElementNS(NS,"text");t.setAttribute("x",x+65);t.setAttribute("y",245);t.setAttribute("text-anchor","middle");t.setAttribute("font-size","24");t.textContent=targets[i][0]+" ⇄ "+targets[i][1];s.appendChild(t);
+ });
+ document.querySelector("#scores").innerHTML=targets.map((t,i)=>`<div class=pair><strong>${t[0]} ⇄ ${t[1]}</strong> <span class=score>${pairScore(i).toFixed(1)}</span></div>`).join("")+`<div class="pair good"><strong>TOTAL</strong> ${total().toFixed(1)}</div>`;
+}
+function mutate(){
+ hist.push(clone(glyphs)); if(hist.length>30)hist.shift();
+ let n=+document.querySelector("#iters").value,mag=+document.querySelector("#mag").value;
+ for(let k=0;k<n;k++){
+  let i=Math.floor(Math.random()*4), cand=clone(glyphs[i]), j=Math.floor(Math.random()*cand.length), axis=Math.random()<.5?0:1;
+  let old=pairScore(i), delta=(Math.random()*2-1)*mag;cand[j][axis]=Math.max(10,Math.min(axis?230:170,cand[j][axis]+delta));
+  let neu=pairScore(i,cand);
+  if(neu>=old || Math.random()<.015) glyphs[i]=cand;
+ } render();
+}
+document.querySelector("#mutate").onclick=mutate;
+document.querySelector("#reset").onclick=()=>location.reload();
+document.querySelector("#undo").onclick=()=>{if(hist.length){glyphs=hist.pop();render()}};
+document.querySelector("#mag").oninput=e=>document.querySelector("#mval").textContent=e.target.value;
+document.querySelector("#iters").oninput=e=>document.querySelector("#ival").textContent=e.target.value;
+document.querySelector("#export").onclick=()=>{
+ let svg=document.querySelector("#up").cloneNode(true);svg.setAttribute("xmlns",NS);
+ let blob=new Blob([new XMLSerializer().serializeToString(svg)],{type:"image/svg+xml"}),a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);a.download="love-hate-ambigram.svg";a.click();URL.revokeObjectURL(a.href);
+};
+render();
+</script></body></html>

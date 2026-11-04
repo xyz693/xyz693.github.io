@@ -38,12 +38,13 @@ vm.runInContext(storageCode+ ';preferences.setItem("x","session");globalThis.val
 assert.equal(denied.value,'session');assert.equal(denied.invalid,null);
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(html.includes('sandbox="allow-scripts"'));assert(!html.includes('allow-same-origin'));
-assert(html.includes('id="worldRail"'));
+const catalog = vm.runInNewContext(fs.readFileSync(path.join(root,'atlas-catalog.js'),'utf8')+';atlasCatalog');
+assert(catalog.every(body => body.mark && body.action));
 assert(html.includes("addEventListener('popstate',()=>applyRoute(false))"));
 assert(html.includes("route('#project/'+p.id)"));
 assert(html.includes("if(hash==='#index')"));
 assert(html.includes('aria-current'));
-assert(/@media\(max-width:680px\)[\s\S]*?\.label\{display:none!important\}/.test(html));
-for(const m of html.matchAll(/file:'([^']+)'/g))assert(/^https:\/\//.test(m[1]) || fs.existsSync(path.join(root,m[1])),m[1]);
+assert(html.includes("button.className = 'mission-mark'"));
+for(const body of catalog) assert(/^https:\/\//.test(body.file) || fs.existsSync(path.join(root,body.file)),body.file);
 for(const m of html.matchAll(/<script src="([^"]+)"/g))assert(/^https:\/\//.test(m[1]) || fs.existsSync(path.join(root,m[1])),m[1]);
-console.log('PASS: preview lifecycle, stale events, dimensions, pause/reload, visibility, cleanup, denied storage, sandbox, launch links, history routing and mobile world rail');
+console.log('PASS: preview lifecycle, stale events, dimensions, pause/reload, visibility, cleanup, denied storage, sandbox, launch links, history routing and mission marks');

@@ -132,5 +132,68 @@ const atlasCatalog = [
     "radius": 2.4,
     "orbit": 50,
     "phase": 1.1
+  },
+  {
+    "id": "mark-studio",
+    "title": "Animated SVG Mark Studio",
+    "world": "Uranus",
+    "parent": null,
+    "kind": "planet",
+    "category": "Design",
+    "discipline": "Vector animation",
+    "description": "Draw a path or place some lettering, set it in motion, and take it home as an animated SVG.",
+    "action": "Animate a mark",
+    "file": "projects/ReefStudio.html",
+    "tags": [
+      "Vector animation",
+      "planet"
+    ],
+    "mark": "M4 20l3-7L18 2l4 4-11 11z M4 20l7-3 M3 5q3-4 6-1",
+    "color": "#89d5c9",
+    "radius": 2.1,
+    "orbit": 59,
+    "phase": 2.03
+  },
+  {
+    "id": "ambigram",
+    "title": "Ambigram Vector Looper",
+    "world": "Miranda",
+    "parent": "mark-studio",
+    "kind": "moon",
+    "category": "Design",
+    "discipline": "Lettering",
+    "description": "Compare a LOVE/HATE lettering study in two orientations, try mutations, and export a candidate as an SVG.",
+    "action": "Explore the lettering",
+    "file": "projects/ambigram_vector_looper.html",
+    "tags": [
+      "Lettering",
+      "moon"
+    ],
+    "mark": "M3 9a9 9 0 0 1 16-3l2 3 M21 4v5h-5 M21 15a9 9 0 0 1-16 3l-2-3 M3 20v-5h5",
+    "color": "#d4b2e8",
+    "radius": 0.72,
+    "orbit": 5.8,
+    "phase": 3.4
+  },
+  {
+    "id": "reaction-atlas",
+    "title": "Reaction Atlas",
+    "world": "Neptune",
+    "parent": null,
+    "kind": "planet",
+    "category": "Science",
+    "discipline": "Organic chemistry",
+    "description": "Scrub a Diels–Alder reaction to watch two reactants form a six-membered ring.",
+    "action": "Explore the reaction",
+    "file": "projects/Reaction_Atlas_0.1.html",
+    "tags": [
+      "Organic chemistry",
+      "planet"
+    ],
+    "mark": "M3 8l7-4 7 4v8l-7 4-7-4z M6 10v5 M17 8l4-3",
+    "color": "#88afeb",
+    "radius": 2.2,
+    "orbit": 70,
+    "phase": 4.65
   }
 ];

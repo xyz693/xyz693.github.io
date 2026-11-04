@@ -1,29 +1,10 @@
-<!--
-  Three-Column Portfolio Index
-  -------------------------------------------------
-  Single-file index.html to showcase standalone pages that live
-  in the SAME FOLDER as this file. No external deps. Drop-in ready.
 
-  HOW TO USE
-  1) Put this file (index.html) in the folder alongside your pages.
-  2) In the ITEMS array below, add entries for each page you want to show.
-     - file: the filename of your page (relative, same folder)
-     - category: one of "Utility", "Design", or "Local"
-     - title/description/tags/date: as you like; tags help with search
-  3) Optionally tweak THEME variables in :root for quick restyling.
-
-  Notes
-  - Responsive. On large screens it shows 3 columns; smaller screens collapse gracefully.
-  - Built-in search, tag filtering, and sort (Newest, A→Z).
-  - Dark-mode aware (prefers-color-scheme), with custom CSS variables.
-  - All CSS & JS embedded.
--->
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Portfolio • Utility · Design · Local</title>
+<title>Projects · XYZ693</title>
 <meta name="description" content="Three-column portfolio index for standalone pages." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2300d1b2'/%3E%3Cpath d='M16 40h32v4H16zM16 20h22v4H16zM16 30h28v4H16z' fill='white'/%3E%3C/svg%3E" />
 <style>
@@ -137,7 +118,7 @@
       <div class="brand" aria-label="Portfolio home">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 4v10l-8 4-8-4V7l8-4z"/><path d="M12 3v18" opacity=".5"/><path d="M4 7l8 4 8-4" opacity=".5"/></svg>
         <div>
-          <div>Portfolio Index</div>
+          <div>XYZ693 · Project Atlas</div>
           <div class="sub">Utility • Design • Local</div>
         </div>
       </div>
@@ -165,8 +146,8 @@
 
   <main class="wrap" id="app" role="main">
     <div class="hero">
-      <h1 class="stripe">Selected Works</h1>
-      <p>Browse your standalone pages by category. Use search and tags to filter. Everything opens in a new tab.</p>
+      <h1 class="stripe">Projects</h1>
+      <p>Browse the collection by subject, or search for a project.</p>
     </div>
 
     <div class="columns" id="columns" aria-live="polite" aria-busy="false">
@@ -175,70 +156,14 @@
 
     <div id="empty" class="empty" hidden>No matches. Try clearing filters or searching different terms.</div>
 
-    <footer>Made with ♥ — single-file index for quick drop-in portfolios.</footer>
+    <footer><a href="index.html">Back to system</a></footer>
   </main>
 
+<script src="atlas-catalog.js"></script>
 <script>
   // ---- Data -------------------------------------------------------------
-  // Replace these with your real pages (same folder as index.html)
-  const ITEMS = [
-    // Utility
-    {
-      title: "Silver Meteor Connections",
-      file: "Silver.html",
-      category: "Utility",
-      description: "A connection planner for the Amtrak Silver Meteor line.",
-      tags: ["connection-required","tourism","web-scraping","scheduling"],
-      date: "2025-05-25"
-    },
-    {
-      title: "Net-Trek: The Next Generative",
-      file: "Webtrek.html",
-      category: "Utility",
-      description: "Network dashboard in a classic Sci-Fi style.",
-      tags: ["web","data"],
-      date: "2025-08-24"
-    },
-
-
-    // Microframes
-    {
-      title: "150kb Landing Page",
-      file: "https://xyz693.github.io/SingingwithSprouts/SingingWithSprouts.html",
-      category: "Design",
-      description: "Hypercompact landing page with custom sprites using SVG symbolsheet",
-      tags: ["ui","cards","hover"],
-      date: "2025-07-12"
-    },
-    {
-      title: "Microcosm One-page Site Foundry",
-      file: "SiteGenerator.html",
-      category: "Design",
-      description: "A local-first site builder with live responsive preview, curated starting points, editable project files, and standalone HTML export.",
-      tags: ["web","branding","generator","local-first"],
-      date: "2025-06-05"
-    },
-
-    // Local
-    {
-      title: "Kennedy Space Center Launch Countdown",
-      file: "TMinusKSC.html",
-      category: "Local",
-      description: "Real-time countdown clock of launches from Kennedy Space Center.",
-      tags: ["connection-required","tourism","web-scraping","scheduling"],
-      date: "2025-05-25"
-    },
-    {
-      title: "Beach Walk Planner",
-      file: "TideClock.html",
-      category: "Local",
-      description: "A weather dashboard for planning night beach walks.",
-      tags: ["weather","tourism"],
-      date: "2025-04-18"
-    }
-  ];
-
-  const CATEGORIES = ["Utility", "Design", "Local"];
+  const ITEMS = atlasCatalog;
+  const CATEGORIES = [...new Set(ITEMS.map(body => body.category))];
 
   // ---- State ------------------------------------------------------------
   const state = {
@@ -308,7 +233,7 @@
       h2.innerHTML = `${iconFor(cat)}${cat}`;
       const count = document.createElement('div');
       count.className = 'count';
-      count.textContent = list.length + ' item' + (list.length===1?'':'s');
+      count.textContent = list.length + ' project' + (list.length===1?'':'s');
       head.append(h2, count);
 
       const ul = document.createElement('div');
@@ -317,7 +242,7 @@
       if (list.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.textContent = 'No entries yet. Add some in the ITEMS array.';
+        empty.textContent = 'No projects match these filters.';
         ul.appendChild(empty);
       } else {
         for (const it of list) ul.appendChild(renderCard(it));
@@ -353,11 +278,11 @@
     const open = document.createElement('a');
     open.className = 'btn';
     open.href = it.file; open.target = '_blank' ; open.rel = 'noopener';
-    open.innerHTML = `${linkIcon()}Open`;
+    open.innerHTML = `${linkIcon()}${escapeHtml(it.action)}`;
 
     const peek = document.createElement('a');
     peek.className = 'btn ghost';
-    peek.href = it.file + '#peek'; peek.target = '_blank'; peek.rel = 'noopener';
+    peek.href = 'index.html#project/' + encodeURIComponent(it.id); peek.target = '_blank'; peek.rel = 'noopener';
     peek.innerHTML = `${eyeIcon()}Preview`;
 
     actions.append(open, peek);

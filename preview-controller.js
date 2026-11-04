@@ -26,7 +26,7 @@ const preview = (() => {
     get('previewPause').setAttribute('aria-pressed', String(paused));
     if (!project) { status('Choose a project to preview.'); return; }
     if (paused || covered || document.hidden) {
-      status(paused ? 'Preview paused. Open the full project at any time.' : 'Preview suspended while out of view.');
+      status(paused ? 'Preview paused. Open the full project at any time.' : 'Preview paused while out of view.');
       return;
     }
     const token = generation;
@@ -37,7 +37,7 @@ const preview = (() => {
       if (token !== generation) return;
       clearTimeout(timer);
       // An iframe load event does not prove its scripts or remote data succeeded.
-      status('Page loaded. Live data may be restricted; open the full page if incomplete.');
+      status('Open the project to use its controls.');
     };
     frame.onerror = () => {
       if (token !== generation) return;

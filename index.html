@@ -26,8 +26,11 @@ header{pointer-events:none}header nav{pointer-events:auto}
 header button,footer button,.close{min-height:44px;min-width:44px}
 .directory-open #labels,.directory-open .intro{visibility:hidden}
 #panel h2{margin-right:36px}#panel .launch{margin:10px 0}
-.no-scene #labels,.no-scene #motion,.no-scene .hint{display:none}
-#browse{display:none}.no-scene:not(.selected):not(.directory-open) #browse{display:block;position:fixed;left:38px;top:320px;padding:10px 16px;background:#17202a;border:1px solid var(--line)}
+.no-scene #motion,.no-scene .hint,.no-scene #space canvas{display:none}
+#flat-sky{display:none;width:100%;height:100%;pointer-events:none}
+.no-scene #flat-sky{display:block}
+.no-scene #status{bottom:12px;pointer-events:none}
+.no-scene.selected #status{display:none}
 @media(max-width:680px){
  header{top:max(8px,env(safe-area-inset-top));left:16px;right:16px}
  .intro{top:78px;left:18px}.intro h1{font-size:30px;margin:4px 0}.intro p{margin:4px 0}
@@ -35,12 +38,11 @@ header button,footer button,.close{min-height:44px;min-width:44px}
  #panel::before{content:"";display:block;width:34px;height:3px;border-radius:3px;background:#61707e;margin:0 auto 10px}
  #panel .preview-viewport{height:140px}#panel .preview-tools{margin-top:8px}
  body.selected footer,footer .hint{display:none}
- .no-scene:not(.selected):not(.directory-open) #browse{left:18px;top:185px}
 }
 </style></head><body>
-<div id="space" aria-label="Interactive planetary portfolio"></div>
+<div id="space" aria-label="Interactive planetary portfolio"><svg id="flat-sky" aria-hidden="true"></svg></div>
 <header><div class="brand">XYZ693<small>PROJECT ATLAS</small></div><nav><button id="home">System view</button><button id="index">Projects</button></nav></header>
-<div class="intro"><div class="eyebrow">XYZ693 portfolio</div><h1>Project Atlas</h1><p>Choose a world to explore its project.</p></div><button id="browse">Browse projects</button>
+<div class="intro"><div class="eyebrow">XYZ693 portfolio</div><h1>Project Atlas</h1><p>Choose a world to explore its project.</p></div>
 <nav id="labels" aria-label="Project marks"></nav><aside id="panel" hidden aria-label="Selected project"><button class="close" id="close" aria-label="Back to system">×</button><div id="category" class="eyebrow"></div><h2 id="title"></h2><p id="description"></p><a id="launch" class="launch" target="_blank" rel="noopener">Open project ↗</a><div class="preview-tools" role="group" aria-label="Webpage preview controls"><label for="previewSize">View</label><select id="previewSize"><option value="desktop">Desktop</option><option value="phone">Phone</option></select><button id="previewPause" aria-pressed="false">Pause preview</button><button id="previewRetry">Reload</button></div><p id="previewStatus" role="status">Choose a project to preview.</p><a id="previewLink"  class="page-preview" target="_blank" rel="noopener" aria-label="Open project from preview"><div class="preview-viewport"><iframe id="pagePreview" title="Selected webpage preview" sandbox="allow-scripts" tabindex="-1" loading="lazy" referrerpolicy="no-referrer"></iframe></div><span class="preview-caption">PROJECT PREVIEW <span>Open full page ↗</span></span></a></aside>
 <aside id="directory" hidden aria-label="Project index"><button class="close" id="indexClose" aria-label="Close projects">×</button><div class="eyebrow">Project Atlas</div><h2>Projects</h2><div id="entries"></div><a href="portfolio-index.html" style="font-size:12px">Search all projects ↗</a></aside>
 <div id="status" role="status"></div><footer><div class="hint">Drag to orbit · Scroll to zoom</div><button id="motion" aria-pressed="false">Pause motion</button></footer>
@@ -67,6 +69,7 @@ function pauseUI(){$('motion').textContent=paused?'Resume motion':'Pause motion'
 function route(hash,replace=false){const url=location.pathname+location.search+hash;(replace?history.replaceState:history.pushState).call(history,{route:hash},'',url)}
 function markCurrent() {
   for (const body of projects) body.label.setAttribute('aria-current', String(body === selected));
+  if (document.body.classList.contains('no-scene')) drawFlatSky();
   $('home').textContent = selected ? 'Back to system' : 'System view';
 }
 function choose(id,focus=true,navigate=true){const p=projects.find(p=>p.id===id);if(!p)return;selected=p;lastFocus=focus?document.activeElement:lastFocus;document.body.classList.add('selected');document.body.classList.remove('directory-open');$('panel').hidden=false;$('directory').hidden=true;for(const [el,key]of [['title','title'],['description','description']])$(el).textContent=p[key];$('category').textContent=p.world+' · '+p.discipline; $('launch').textContent=p.action+' ↗'; $('launch').href=p.file;$('previewLink').href=p.file;$('previewLink').setAttribute('aria-label','Open '+p.title+' from preview');preview.show(p);markCurrent();if(navigate)route('#project/'+p.id);$('panel').scrollTop=0;if(focus)$('close').focus({preventScroll:true})}
@@ -96,13 +99,74 @@ for (const body of projects) {
   row.append(entry);
   $('entries').append(row);
 }
-$('browse').onclick = () => showDirectory();
-function fallback() {
-  document.body.classList.add('no-scene');
-  $('status').textContent = 'Sky view unavailable on this device.';
+let frameId = 0;
+function drawFlatSky() {
+  const sky = $('flat-sky');
+  sky.replaceChildren();
+  const width = innerWidth;
+  const height = innerHeight;
+  const mobile = width <= 680;
+  const top = selected ? 64 : Math.min(210, height * .27);
+  const bottom = selected && mobile ? $('panel').getBoundingClientRect().top : height - 50;
+  const right = selected && !mobile ? $('panel').getBoundingClientRect().left : width;
+  const cx = right / 2;
+  const cy = (top + bottom) / 2;
+  sky.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+
+  function shape(tag, attributes) {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+    sky.append(element);
+  }
+  function globe(x, y, radius, color) {
+    const ink = {fill:'none',stroke:color,'stroke-width':1};
+    shape('circle',{cx:x, cy:y, r:radius, ...ink});
+    shape('ellipse',{cx:x, cy:y, rx:radius*.44, ry:radius, ...ink});
+    shape('ellipse',{cx:x, cy:y, rx:radius, ry:radius*.32, ...ink});
+  }
+
+  for (const body of projects) body.label.style.display = 'none';
+  const bodies = projects.filter(inView);
+  if (!selected) globe(cx, cy, mobile ? 10 : 16, '#d5ad74');
+  bodies.forEach((body, index) => {
+    const focus = body === selected;
+    const fraction = .57 + .4 * (index+1) / bodies.length;
+    const rx = Math.max(20, (cx-46) * fraction);
+    const ry = Math.max(20, ((bottom-top)/2-25) * fraction);
+    const angle = -Math.PI/2 + index * 2*Math.PI / bodies.length;
+    const x = focus ? cx : cx + rx*Math.cos(angle);
+    const y = focus ? cy : cy + ry*Math.sin(angle);
+    const radius = focus ? 26 : 4 + body.radius * 2;
+    if (!focus) shape('ellipse',{cx,cy,rx,ry,fill:'none',stroke:'#283a4c','stroke-width':.8});
+    globe(x,y,radius,body.color);
+    body.label.style.setProperty('--d', 2*radius + 'px');
+    body.label.style.left = x + 'px';
+    body.label.style.top = y + 'px';
+    body.label.style.display = 'flex';
+  });
 }
+function fallback() {
+  cancelAnimationFrame(frameId);
+  document.body.classList.add('no-scene');
+  $('status').textContent = 'Orbit map · Select a world';
+  drawFlatSky();
+}
+addEventListener('resize', () => {
+  if (document.body.classList.contains('no-scene')) drawFlatSky();
+});
 try{if(!window.THREE)throw Error('Three.js unavailable');
-const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.1,700),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;$('space').append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();fallback()});
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.1,700),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;$('space').append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  fallback();
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  cancelAnimationFrame(frameId);
+  document.body.classList.remove('no-scene');
+  $('status').textContent = '';
+  last = performance.now();
+  ready = false;
+  frameId = requestAnimationFrame(animate);
+});
 scene.add(new THREE.AmbientLight(0x94adc6,1.25));scene.add(new THREE.PointLight(0xffdcc0,100,200,1));
 function rand(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}const random=rand(693);
 const sun=new THREE.Mesh(new THREE.IcosahedronGeometry(3.1,2),new THREE.MeshBasicMaterial({color:0xd5ad74,wireframe:true,transparent:true,opacity:.6}));scene.add(sun);
@@ -113,7 +177,7 @@ mesh.userData.id=p.id;p.mesh=mesh;scene.add(mesh);const points=[];for(let k=0;k<
 let azimuth=.25,elevation=.72,distance=126,drag=null,moved=false;const target=new THREE.Vector3(),wantTarget=new THREE.Vector3(),wantCamera=new THREE.Vector3(),ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),world=new THREE.Vector3(),depthVector=new THREE.Vector3();
 renderer.domElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY};moved=false;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>5)moved=true;azimuth-=dx*.006;elevation=Math.max(.16,Math.min(1.4,elevation+dy*.004));drag.x=e.clientX;drag.y=e.clientY});renderer.domElement.addEventListener('pointerup',e=>{if(!moved&&drag){pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(projects.filter(inView).map(p=>p.mesh),false);if(hits.length)choose(hits[0].object.userData.id)}drag=null});renderer.domElement.addEventListener('pointercancel',()=>drag=null);renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();distance=Math.max(65,Math.min(220,distance+e.deltaY*.07))},{passive:false});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-let last=performance.now(),ready=false;function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;ordered.forEach((p,i) => {
+let last=performance.now(),ready=false;function animate(now){try {const dt=Math.min((now-last)/1000,.05);last=now;ordered.forEach((p,i) => {
   if (!paused && !selected) p.phase += dt * .025 / (1 + i * .35);
   p.mesh.position.set(Math.cos(p.phase)*p.orbit,0,Math.sin(p.phase)*p.orbit);
   if (p.parent) {
@@ -138,7 +202,13 @@ for (const p of projects) {
   p.label.style.left = ((world.x+1)*innerWidth/2) + 'px';
   p.label.style.top = ((1-world.y)*innerHeight/2) + 'px';
 }
-renderer.render(scene,camera)}requestAnimationFrame(animate);
+renderer.render(scene,camera);
+frameId = requestAnimationFrame(animate);
+} catch (error) {
+  console.error(error);
+  fallback();
+}}
+frameId = requestAnimationFrame(animate);
 }catch(e){console.error(e);fallback()}
 applyRoute(false);history.replaceState({route:location.hash||'#overview'},'',location.pathname+location.search+(location.hash||'#overview'));
 </script></body></html>
